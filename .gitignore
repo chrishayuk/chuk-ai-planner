@@ -12,3 +12,4 @@ wheels/
 
 # environment
 .env
+.DS_Store

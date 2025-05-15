@@ -32,7 +32,7 @@ async def execute_tool(
 ) -> Dict[str, Any]:
     """
     Dispatch *tool_call* (a Chat-Completions-style dict) via the global tool
-    registry and return the tool’s result.
+    registry and return the tool's result.
 
     Parameters
     ----------
@@ -45,6 +45,15 @@ async def execute_tool(
               "arguments": "{\"location\": \"New York\"}"
           }
         }
+    _parent_event_id : str
+        The ID of the parent event
+    _assistant_node_id : str
+        The ID of the assistant node
+        
+    Returns
+    -------
+    Dict[str, Any]
+        The result of executing the tool
     """
     name = tool_call["function"]["name"]
     args: Dict[str, Any] = json.loads(tool_call["function"].get("arguments", "{}"))
@@ -61,4 +70,3 @@ async def execute_tool(
     if asyncio.iscoroutinefunction(fn):
         return await fn(args)
     return fn(args)  # sync
-

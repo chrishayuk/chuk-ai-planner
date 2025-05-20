@@ -1,4 +1,4 @@
-# src/chuk_ai_planner/planner/plan_registry.py
+# chuk_ai_planner/planner/plan_registry.py
 """
 chuk_ai_planner.planner.plan_registry
 ====================================

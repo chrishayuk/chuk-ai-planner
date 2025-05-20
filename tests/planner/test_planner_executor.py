@@ -1,6 +1,6 @@
 import asyncio
 import json
-from a2a_session_manager.models.event_type import EventType
+from chuk_session_manager.models.event_type import EventType
 import pytest
 from collections import defaultdict
 

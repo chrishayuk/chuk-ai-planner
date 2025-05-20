@@ -1,4 +1,4 @@
-# src/chuk_ai_planner/store/memory.py
+# chuk_ai_planner/store/memory.py
 """
 Simple in-memory implementation of a graph store.
 

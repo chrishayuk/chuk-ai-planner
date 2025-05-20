@@ -1,9 +1,9 @@
-# src/chuk_ai_planner/planner/plan_executor.py
+# chuk_ai_planner/planner/plan_executor.py
 """
 PlanExecutor
 ============
 
-Utility class that lives *below* the high–level Plan DSL and *above* the
+Utility class that lives *below* the high-level Plan DSL and *above* the
 GraphAwareToolProcessor.  It provides three things:
 
 1. ``get_plan_steps(plan_id)``  
@@ -33,7 +33,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 from chuk_ai_planner.models import GraphNode, NodeKind
 from chuk_ai_planner.models.edges import EdgeKind
 from chuk_ai_planner.store.base import GraphStore
-from a2a_session_manager.models.event_type import EventType
+from chuk_session_manager.models.event_type import EventType
 
 
 

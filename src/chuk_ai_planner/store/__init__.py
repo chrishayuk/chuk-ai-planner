@@ -1,4 +1,4 @@
-# src/chuk_ai_planner/store/__init__.py
+# chuk_ai_planner/store/__init__.py
 """
 Graph storage components for the chuk_ai_planner package.
 

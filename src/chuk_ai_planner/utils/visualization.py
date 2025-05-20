@@ -10,8 +10,8 @@ Updated to handle variations in EventType enums.
 
 from typing import Dict, List, Any
 
-from a2a_session_manager.models.session import Session
-from a2a_session_manager.models.event_type import EventType
+from chuk_session_manager.models.session import Session
+from chuk_session_manager.models.event_type import EventType
 
 from chuk_ai_planner.models import NodeKind
 from chuk_ai_planner.models.edges import EdgeKind

@@ -7,26 +7,26 @@ Natural-language task → LLM-generated JSON plan → executed plan
 """
 
 from __future__ import annotations
-import argparse, asyncio, json, os, re
+import argparse, asyncio, json, os, re, uuid
 from typing import Dict, Any, List
+import inspect
 
-# ── demo tools (register on import) ──────────────────────────────────
-from sample_tools import WeatherTool, CalculatorTool, SearchTool  # noqa: F401
+# ── Explicitly import the sample tools ──────────────────────────────────
+# We'll import them but modify how we use them
+from chuk_ai_planner.store.base import GraphStore
+from sample_tools import WeatherTool, CalculatorTool, SearchTool
 
 # ── A2A plumbing -----------------------------------------------------
-from a2a_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from a2a_session_manager.models.session import Session
+from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_session_manager.models.session import Session
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 from chuk_ai_planner.planner import Plan
 from chuk_ai_planner.models import ToolCall
 from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
-from chuk_ai_planner.processor import GraphAwareToolProcessor
 from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
-from chuk_ai_planner.utils.registry_helpers import execute_tool
 
 from dotenv import load_dotenv
 load_dotenv()
-
 
 # ── OpenAI (optional) -------------------------------------------------
 from chuk_ai_planner.demo.llm_simulator import simulate_llm_call
@@ -35,28 +35,45 @@ try:
 except ImportError:
     AsyncOpenAI = None  # type: ignore
 
-# ── quick registry name helper ---------------------------------------
-from chuk_tool_processor.registry import default_registry
-def registry_names():
-    if hasattr(default_registry, "iter_tools"):
-        for meta in default_registry.iter_tools():
-            yield meta.name
-    elif hasattr(default_registry, "tools"):
-        yield from default_registry.tools.keys()             # type: ignore[attr-defined]
-    else:
-        yield from getattr(default_registry, "_tools", {}).keys()
+# ── Simple wrapper for sample tools ----------------------------------
+class ToolWrapper:
+    """Wrapper to standardize tool interface."""
+    
+    def __init__(self, tool_class):
+        """Initialize with a tool class."""
+        self.tool_class = tool_class
+        
+    async def run(self, **kwargs):
+        """Run the tool with given arguments."""
+        # Create an instance of the tool
+        instance = self.tool_class()
+        
+        # Check if the instance has an arun method (async)
+        if hasattr(instance, 'arun') and callable(instance.arun):
+            return await instance.arun(**kwargs)
+        
+        # Check if the instance has a run method (sync)
+        if hasattr(instance, 'run') and callable(instance.run):
+            return instance.run(**kwargs)
+        
+        # If neither method exists, try to call the instance itself
+        if callable(instance):
+            result = instance(**kwargs)
+            if inspect.iscoroutine(result):
+                return await result
+            return result
+        
+        raise ValueError(f"Unable to execute tool {self.tool_class.__name__}")
 
-# universal async adapter (same as earlier demo) ----------------------
-async def adapter(tool_name: str, args: Dict[str, Any]) -> Any:
-    tc = {"id": "call",
-          "type": "function",
-          "function": {"name": tool_name, "arguments": json.dumps(args)}}
-    return await execute_tool(tc, _parent_event_id=None, _assistant_node_id=None)
+# ── Simple coffee tools ----------------------------------------------
+class CoffeeTool:
+    """Generic coffee preparation tool."""
+    
+    async def run(self):
+        """Perform a coffee-related task."""
+        return {"status": "completed", "message": "Coffee task completed successfully"}
 
-def reg(proc: GraphAwareToolProcessor, name: str):
-    proc.register_tool(name, lambda a, _n=name: adapter(_n, a))
-
-# -------------------------------------------------------------------- LLM helpers
+# ── LLM helpers ------------------------------------------------------
 LLM_SYSTEM_MSG = (
     "You are an assistant that converts a natural-language task into a JSON "
     "plan. Return ONLY valid JSON!\n"
@@ -70,7 +87,6 @@ LLM_SYSTEM_MSG = (
     "}\n"
     "Indices start at 1 in the final output."
 )
-
 
 async def call_llm_live(task: str) -> Dict[str, Any]:
     if not AsyncOpenAI:
@@ -86,7 +102,6 @@ async def call_llm_live(task: str) -> Dict[str, Any]:
     )
     return json.loads(resp.choices[0].message.content)
 
-
 async def call_llm_sim(task: str) -> Dict[str, Any]:
     """
     Crude rule-based stub that returns a fixed three-step plan for any prompt.
@@ -100,6 +115,147 @@ async def call_llm_sim(task: str) -> Dict[str, Any]:
             {"title": "Search climate-adaptation info",      "depends_on": []},
         ],
     }
+
+# ── Simple plan execution --------------------------------------------
+async def execute_step_tool_calls(graph_store: GraphStore, step_id: str) -> List[Dict]:
+    """
+    Execute all tool calls linked to a step.
+    Returns a list of result dictionaries.
+    """
+    results = []
+    
+    # Map tool names to wrapped tool classes
+    tools = {
+        'weather': ToolWrapper(WeatherTool),
+        'calculator': ToolWrapper(CalculatorTool),
+        'search': ToolWrapper(SearchTool),
+        'grind_beans': CoffeeTool(),
+        'boil_water': CoffeeTool(),
+        'brew_coffee': CoffeeTool(),
+        'clean_station': CoffeeTool(),
+    }
+    
+    # Find all tool calls for this step
+    for edge in graph_store.get_edges(src=step_id, kind=EdgeKind.PLAN_LINK):
+        tool_node = graph_store.get_node(edge.dst)
+        if not tool_node or tool_node.kind.value != "tool_call":
+            continue
+        
+        # Get tool info
+        tool_name = tool_node.data.get("name")
+        args = tool_node.data.get("args", {})
+        
+        try:
+            # Get the tool
+            if tool_name in tools:
+                tool = tools[tool_name]
+                
+                # Special handling for calculator
+                if tool_name == 'calculator':
+                    # Fix parameters if needed - map x/y to a/b
+                    if 'x' in args and 'y' in args and 'a' not in args and 'b' not in args:
+                        args = {
+                            'a': args['x'],
+                            'b': args['y'],
+                            'operation': args.get('operation', 'add')
+                        }
+                
+                # Execute the tool
+                result = await tool.run(**args)
+                
+                # Update the tool node with the result
+                updated_tool = ToolCall(
+                    id=tool_node.id,
+                    data={
+                        **tool_node.data,
+                        "result": result
+                    }
+                )
+                graph_store.update_node(updated_tool)
+                
+                # Add to results
+                results.append({
+                    "id": tool_node.id,
+                    "tool": tool_name,
+                    "args": args,
+                    "result": result
+                })
+            else:
+                # Unknown tool
+                error = f"Unknown tool: {tool_name}"
+                print(f"Warning: {error}")
+                
+                # Update the tool node with the error
+                updated_tool = ToolCall(
+                    id=tool_node.id,
+                    data={
+                        **tool_node.data,
+                        "error": error
+                    }
+                )
+                graph_store.update_node(updated_tool)
+                
+                # Add to results
+                results.append({
+                    "id": tool_node.id,
+                    "tool": tool_name,
+                    "args": args,
+                    "error": error
+                })
+                
+        except Exception as ex:
+            print(f"Error executing {tool_name}: {ex}")
+            
+            # Update the tool node with the error
+            updated_tool = ToolCall(
+                id=tool_node.id,
+                data={
+                    **tool_node.data,
+                    "error": str(ex)
+                }
+            )
+            graph_store.update_node(updated_tool)
+            
+            # Add to results
+            results.append({
+                "id": tool_node.id,
+                "tool": tool_name,
+                "args": args,
+                "error": str(ex)
+            })
+    
+    return results
+
+async def execute_plan_directly(graph_store: GraphStore, plan_id: str) -> List[Dict]:
+    """
+    Simple implementation to execute a plan directly.
+    """
+    # Import the PlanExecutor to get steps and execution order
+    from chuk_ai_planner.planner.plan_executor import PlanExecutor
+    executor = PlanExecutor(graph_store)
+    
+    # Get steps
+    steps = executor.get_plan_steps(plan_id)
+    if not steps:
+        raise ValueError(f"No steps found for plan {plan_id}")
+    
+    # Determine execution order
+    batches = executor.determine_execution_order(steps)
+    all_results = []
+    
+    # Execute steps in order
+    for batch_idx, batch in enumerate(batches):
+        print(f"Executing batch {batch_idx+1}/{len(batches)}...")
+        
+        for step_idx, step_id in enumerate(batch):
+            step = graph_store.get_node(step_id)
+            print(f"  Step {step.data.get('index')}: {step.data.get('description')}")
+            
+            # Execute all tool calls for this step
+            step_results = await execute_step_tool_calls(graph_store, step_id)
+            all_results.extend(step_results)
+    
+    return all_results
 
 # -------------------------------------------------------------------- main flow
 async def main(live: bool) -> None:
@@ -122,7 +278,6 @@ async def main(live: bool) -> None:
     print(plan.outline(), "\n")
 
     # 2) naive tool-mapping heuristic ---------------------------------
-    # (real usage would rely on function-calling in the LLM)
     title_map = {
         re.compile(r"weather", re.I):   ("weather",    {"location": "New York"}),
         re.compile(r"multiply", re.I):  ("calculator", {"operation": "multiply",
@@ -151,35 +306,29 @@ async def main(live: bool) -> None:
                                               src=node_id, dst=tc.id))
                 break
 
-    # 3) processor ----------------------------------------------------
-    SessionStoreProvider.set_store(InMemorySessionStore())
-    session = Session(); SessionStoreProvider.get_store().save(session)
+    # 3) execution ---------------------------------------------------
+    # Initialize session store with proper async handling
+    store = InMemorySessionStore()
+    SessionStoreProvider.set_store(store)
+    session = Session()
+    
+    # Handle potentially async save
+    save_result = store.save(session)
+    if asyncio.iscoroutine(save_result):
+        await save_result
 
-    proc = GraphAwareToolProcessor(session_id=session.id, graph_store=plan.graph)
+    # Execute plan directly
+    results = await execute_plan_directly(plan.graph, plan_id)
 
-    # registry & demo tools
-    for n in registry_names():
-        reg(proc, n)
-    reg(proc, "weather")
-    reg(proc, "calculator")
-    reg(proc, "search")
-    proc.register_tool("grind_beans",   adapter.__get__(None, object))
-    proc.register_tool("boil_water",    adapter.__get__(None, object))
-    proc.register_tool("brew_coffee",   adapter.__get__(None, object))
-    proc.register_tool("clean_station", adapter.__get__(None, object))
-
-    # run plan
-    results = await proc.process_plan(
-        plan_node_id=plan_id,
-        assistant_node_id="assistant",
-        llm_call_fn=lambda _: None,
-    )
-
-    print("✅  TOOL RESULTS\n")
+    print("\n✅  TOOL RESULTS\n")
     for r in results:
-        print(f"• {r.tool}\n{json.dumps(r.result, indent=2)}\n")
+        tool_name = r.get("tool", "unknown")
+        if "error" in r:
+            print(f"• {tool_name} (ERROR)\n  {r['error']}\n")
+        else:
+            print(f"• {tool_name}\n{json.dumps(r.get('result', {}), indent=2)}\n")
 
-    print_session_events(session)
+    # Display graph structure
     print_graph_structure(plan.graph)
 
 # -------------------------------------------------------------------- entry-point
@@ -192,4 +341,4 @@ if __name__ == "__main__":
     if args.live and not os.getenv("OPENAI_API_KEY"):
         parser.error("Set OPENAI_API_KEY or omit --live")
 
-    asyncio.run(main(args.live))
+    asyncio.run(main(args.live)

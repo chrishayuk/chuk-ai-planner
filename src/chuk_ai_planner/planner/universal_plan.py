@@ -1,4 +1,4 @@
-# src/chuk_ai_planner/planner/universal_plan.py
+# chuk_ai_planner/planner/universal_plan.py
 from typing import Dict, List, Any, Optional, Union, Sequence
 
 # planner

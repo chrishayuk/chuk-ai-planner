@@ -23,8 +23,8 @@ load_dotenv()            # needed for --live (OPENAI_API_KEY)
 from sample_tools import WeatherTool  # noqa: F401  (calculator/search stay registered but won’t be used)
 
 # ── A2A plumbing
-from a2a_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from a2a_session_manager.models.session import Session
+from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_session_manager.models.session import Session
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 from chuk_ai_planner.planner import Plan
 from chuk_ai_planner.models import ToolCall

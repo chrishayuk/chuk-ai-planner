@@ -67,9 +67,9 @@ def persist_full_plan(
     """
     Write the complete Plan *once* — used by `Plan.save()`.
 
-    * `plan_node`   – already added to the graph by the caller
-    * `step_map`    – { "1.2": _Step(...), ... } after numbering
-    * `graph`       – any GraphStore implementation
+    * `plan_node`   - already added to the graph by the caller
+    * `step_map`    - { "1.2": _Step(...), ... } after numbering
+    * `graph`       - any GraphStore implementation
     """
     _dump_steps(plan_node, step_map, graph)
     _dump_dependencies(step_map, graph)

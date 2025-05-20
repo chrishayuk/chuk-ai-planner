@@ -1,4 +1,4 @@
-# src/chuk_ai_planner/models/base.py
+# chuk_ai_planner/models/base.py
 from __future__ import annotations
 from datetime import datetime, timezone
 from enum import Enum

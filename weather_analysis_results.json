@@ -1,4 +1,11 @@
 {
+  "target_cities": [
+    "New York",
+    "London",
+    "Tokyo",
+    "Sydney",
+    "Cairo"
+  ],
   "weather_data": {
     "results": {
       "New York": {
@@ -43,7 +50,7 @@
   },
   "report": {
     "title": "Global Weather Analysis Report",
-    "summary": "Analysis of 5 locations shows an average temperature of 74.0\u00b0F with 61.0% average humidity. The most common condition is Partly cloudy.",
+    "summary": "5 cities analysed. Avg T = 74.0 \u00b0F, Avg RH = 61.0 %. Most common: Partly cloudy.",
     "details": {
       "average_temperature": 74.0,
       "average_humidity": 61.0,
@@ -56,14 +63,9 @@
         "Hot": 1
       },
       "locations_analyzed": 5
-    },
-    "recommendations": [
-      "Pack for varied weather conditions",
-      "Bring rain gear",
-      "Pack some warmer clothes"
-    ]
+    }
   },
-  "visualization": {
+  "viz": {
     "title": "Global Weather Visualization",
     "temperature_data": [
       {
@@ -108,8 +110,6 @@
         "condition": "Hot",
         "count": 1
       }
-    ],
-    "average_temperature": 74.0,
-    "average_humidity": 61.0
+    ]
   }
 }

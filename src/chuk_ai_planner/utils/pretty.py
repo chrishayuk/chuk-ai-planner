@@ -1,5 +1,4 @@
 # chuk_ai_planner/utils/pretty.py
-# src/chuk_ai_planner/utils/pretty.py
 """
 Console helpers: colour, plan outline, and a tidy PlanRunLogger.
 """
@@ -10,7 +9,7 @@ from typing import Dict, List, Any, Callable, Awaitable
 from chuk_ai_planner.models import GraphNode, NodeKind
 from chuk_ai_planner.models.edges import EdgeKind
 from chuk_ai_planner.store.base import GraphStore
-from a2a_session_manager.models.event_type import EventType
+from chuk_session_manager.models.event_type import EventType
 
 
 # ─────────────────────────── colour helper ──────────────────────────────

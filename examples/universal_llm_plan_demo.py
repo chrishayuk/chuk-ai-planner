@@ -20,8 +20,8 @@ from chuk_ai_planner.planner.universal_plan import UniversalPlan
 from sample_tools import WeatherTool, CalculatorTool, SearchTool  # noqa: F401
 
 # ── A2A plumbing -----------------------------------------------------
-from a2a_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from a2a_session_manager.models.session import Session
+from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_session_manager.models.session import Session
 from chuk_ai_planner.models import ToolCall
 from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
 from chuk_ai_planner.processor import GraphAwareToolProcessor

@@ -2,9 +2,9 @@
 import pytest
 from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
 
-from a2a_session_manager.models.session import Session, SessionEvent
-from a2a_session_manager.models.event_type import EventType
-from a2a_session_manager.models.event_source import EventSource
+from chuk_session_manager.models.session import Session, SessionEvent
+from chuk_session_manager.models.event_type import EventType
+from chuk_session_manager.models.event_source import EventSource
 
 from chuk_ai_planner.models import NodeKind
 from chuk_ai_planner.models.edges import EdgeKind, GraphEdge

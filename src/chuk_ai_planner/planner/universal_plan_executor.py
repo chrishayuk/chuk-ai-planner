@@ -1,8 +1,9 @@
+# chuk_ai_planner/planner/universal_plan_executor.py
 """
 Enhanced Universal Plan Executor
 ================================
 
-Drop‑in replacement for ``src/chuk_ai_planner/planner/universal_plan_executor.py``
+Drop-in replacement for ``src/chuk_ai_planner/planner/universal_plan_executor.py``
 that fixes:
 
 1. **Variable resolution** - Properly resolves variable references in tool/function arguments
@@ -21,8 +22,8 @@ import uuid
 from dataclasses import asdict, is_dataclass
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 
-from a2a_session_manager.models.session import Session
-from a2a_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_session_manager.models.session import Session
+from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
 
 from chuk_ai_planner.models.edges import EdgeKind
 from chuk_ai_planner.processor import GraphAwareToolProcessor

@@ -1,4 +1,4 @@
-# src/chuk_ai_planner/planner/plan.py
+# chuk_ai_planner/planner/plan.py
 from __future__ import annotations
 
 """
@@ -11,9 +11,9 @@ Author-facing DSL for composing a plan **before** it is persisted to a
 Components are split up to keep the public API small and the internal
 pieces focused:
 
-* `_step_tree.py` – the in-memory tree of `_Step` nodes and helpers
-* `_ids.py`       – tiny UUID helper
-* `_persist.py`   – functions that turn a fully-built plan or a single
+* `_step_tree.py` - the in-memory tree of `_Step` nodes and helpers
+* `_ids.py`       - tiny UUID helper
+* `_persist.py`   - functions that turn a fully-built plan or a single
                     late-added step into graph nodes / edges
 
 Only the `Plan` class below is re-exported by `chuk_ai_planner.planner`.

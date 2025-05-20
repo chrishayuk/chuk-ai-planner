@@ -4,7 +4,7 @@
 
 # This package provides graph-based tools for planning, execution, and 
 # visualization of agent workflows, building on the chuk_ai_planner and 
-# a2a_session_manager systems.
+# chuk_session_manager systems.
 
 # Main components:
 # - GraphAwareToolProcessor: Executes tools based on graph structure

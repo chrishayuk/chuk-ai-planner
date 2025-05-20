@@ -2,15 +2,12 @@ version = 1
 requires-python = ">=3.11"
 
 [[package]]
-name = "a2a-session-manager"
-version = "0.1.3"
+name = "aiofiles"
+version = "24.1.0"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/8c/66/044d0b051734f2d209571add0006a6491df84f1fe8acf531038f00d37cc8/a2a_session_manager-0.1.3.tar.gz", hash = "sha256:e10c466229eb8c1b884b65a6ac1384b33302464eed099a0fafcf979d510331f7", size = 36586 }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/03/a88171e277e8caa88a4c77808c20ebb04ba74cc4681bf1e9416c862de237/aiofiles-24.1.0.tar.gz", hash = "sha256:22a075c9e5a3810f0c2e48f3008c94d68c65d763b9b03857924c99e57355166c", size = 30247 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/68/77/e973a3cb7b65b6ed801b9fcccc8a7b518ac58a6bbaeaabbadeb8e9b072c2/a2a_session_manager-0.1.3-py3-none-any.whl", hash = "sha256:9a8e346071f2f078c877625ab7fb36b4bc9096057a85ef1fbb5e7c1292a6e9b2", size = 33237 },
+    { url = "https://files.pythonhosted.org/packages/a5/45/30bb92d442636f570cb5651bc661f52b610e2eec3f891a5dc3a4c3667db0/aiofiles-24.1.0-py3-none-any.whl", hash = "sha256:b4ec55f4195e3eb5d7abd1bf7e061763e864dd4954231fb8539a0ef8bb8260e5", size = 15896 },
 ]
 
 [[package]]
@@ -138,12 +135,12 @@ wheels = [
 
 [[package]]
 name = "chuk-ai-planner"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
-    { name = "a2a-session-manager" },
     { name = "asyncio" },
     { name = "bs4" },
+    { name = "chuk-session-manager" },
     { name = "chuk-tool-processor" },
     { name = "geopy" },
     { name = "lxml-html-clean" },
@@ -157,10 +154,10 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "a2a-session-manager", specifier = ">=0.1.3" },
     { name = "asyncio", specifier = ">=3.4.3" },
     { name = "bs4", specifier = ">=0.0.2" },
-    { name = "chuk-tool-processor", specifier = ">=0.1.2" },
+    { name = "chuk-session-manager", specifier = ">=0.1.0" },
+    { name = "chuk-tool-processor", specifier = ">=0.1.7" },
     { name = "geopy", specifier = ">=2.4.1" },
     { name = "lxml-html-clean", specifier = ">=0.4.2" },
     { name = "openai", specifier = ">=1.76.2" },
@@ -172,17 +169,46 @@ requires-dist = [
 ]
 
 [[package]]
-name = "chuk-tool-processor"
-version = "0.1.2"
+name = "chuk-mcp"
+version = "0.1.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "anyio" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f4/45/943aa2101a6ee97e7089ce9f0a753481011b5f6fa9f76af60730195e2726/chuk_mcp-0.1.12.tar.gz", hash = "sha256:ab3283e8b4d1c9b4703777425527e0508f4808f4a099ab7200cb2e95d549b810", size = 20774 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0b/00/2836302ea9bebc96497516b27fe518f32a839d8ef17229ec88bab1caddca/chuk_mcp-0.1.12-py3-none-any.whl", hash = "sha256:43dc5acd0fe624c15102d78bda217a02f98752c7ed7cc5222be2aa4793aff4bc", size = 32567 },
+]
+
+[[package]]
+name = "chuk-session-manager"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiofiles" },
+    { name = "chuk-tool-processor" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ff/e9/8973b0a539044846b815e5c545f9cac00fda82d2d7fd59ed001d5d1a25da/chuk_session_manager-0.1.0.tar.gz", hash = "sha256:9cb896642b36e0e7c366b3e13ba99cbb9e5356c778a6cd63ba0c10f719674f98", size = 36503 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/b2/50e9b3b0919df9c8db40edddf44e17362457aa4ca263e9d81efce573b469/chuk_session_manager-0.1.0-py3-none-any.whl", hash = "sha256:270044c38cf11c29a89e62462159b574d391a1f11f9c1423a9c7208fdb94e23f", size = 38492 },
+]
+
+[[package]]
+name = "chuk-tool-processor"
+version = "0.1.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "chuk-mcp" },
     { name = "dotenv" },
     { name = "openai" },
     { name = "pydantic" },
     { name = "uuid" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/08/58/56131da95aa00bea40519856f6a5ef2fc7e462ab3b22bd40e402c9b93c1a/chuk_tool_processor-0.1.2-py3-none-any.whl", hash = "sha256:5bc02bb26d9b7370a7abb92db117ee9972797e027e26eef1707d8006a5ce54d9", size = 44965 },
+    { url = "https://files.pythonhosted.org/packages/d0/88/062ce8e1af577ac5ade19c957fbcce8bf01da6ffdd1f5206ea4b3fdc3571/chuk_tool_processor-0.1.7-py3-none-any.whl", hash = "sha256:09b3c0a7a6c3bc73da4eaa7cc6fed8d3d766ada12a3cc85c6eab63301577e130", size = 88105 },
 ]
 
 [[package]]

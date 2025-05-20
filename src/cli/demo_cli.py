@@ -1,6 +1,7 @@
 #!/usr/bin/env python
+# cli/demo_deep_researcher.py
 """
-cli/demo_cli.py – deep research CLI
+cli/demo_cli.py - deep research CLI
 ==================================
 $ uv run cli/demo_cli.py \
     "Write an overview of Chris Hay of IBM"
@@ -19,8 +20,8 @@ load_dotenv()                        # ← OPENAI_API_KEY
 from sample_tools import WeatherTool, SearchTool, VisitURL  # noqa: F401
 
 # ── A2A plumbing ────────────────────────────────────────────────────
-from a2a_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from a2a_session_manager.models.session import Session
+from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_session_manager.models.session import Session
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 from chuk_ai_planner.planner import Plan
 from chuk_ai_planner.models import ToolCall
@@ -113,7 +114,7 @@ def register_tools(proc: GraphAwareToolProcessor) -> None:
     """
     Register tools with improved error handling.
     """
-    from chuk_tool_processor.registry import default_registry
+    from chuk_tool_processor.registry import get_default_registry
     
     # Suppress warnings that might interfere with tool execution
     warnings.filterwarnings("ignore", category=UserWarning)

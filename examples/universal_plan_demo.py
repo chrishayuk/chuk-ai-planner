@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # examples/universal_plan_demo.py
-#!/usr/bin/env python
-# examples/universal_plan_demo.py
 """
 universal_plan_demo.py
 ======================

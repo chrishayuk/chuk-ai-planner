@@ -23,12 +23,12 @@ from a2a_accounts.models.account import Account
 from a2a_accounts.models.access_levels import AccessLevel
 
 # --- Session Manager imports ---
-from a2a_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from a2a_session_manager.models.session import Session
-from a2a_session_manager.models.session_event import SessionEvent
-from a2a_session_manager.models.event_type import EventType
-from a2a_session_manager.models.event_source import EventSource
-from a2a_session_manager.models.session_run import SessionRun, RunStatus
+from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_session_manager.models.session import Session
+from chuk_session_manager.models.session_event import SessionEvent
+from chuk_session_manager.models.event_type import EventType
+from chuk_session_manager.models.event_source import EventSource
+from chuk_session_manager.models.session_run import SessionRun, RunStatus
 
 # --- Graph Model imports ---
 from chuk_ai_planner.models import (

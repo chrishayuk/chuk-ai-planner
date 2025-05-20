@@ -1,4 +1,4 @@
-# src/chuk_ai_planner/store/base.py
+# chuk_ai_planner/store/base.py
 """
 Abstract base class for graph stores.
 

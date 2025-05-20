@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # examples/universal_executor_demo.py
 """
-Universal Executor Demo – final working version
+Universal Executor Demo - final working version
 ==============================================
 
 • Simple, standalone executor that properly handles variable dependencies

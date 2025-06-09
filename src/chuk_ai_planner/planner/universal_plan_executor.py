@@ -9,6 +9,7 @@ that fixes:
 1. **Variable resolution** - Properly resolves variable references in tool/function arguments
 2. **Sequential execution** - Respects step dependencies and ensures correct execution order
 3. **Result unwrapping** - Correctly unwraps tool results for downstream steps
+4. **Async-native** - Properly handles async session management
 
 This implementation can be used without changing the existing API.
 """
@@ -47,34 +48,58 @@ class UniversalExecutor:
         except Exception:
             SessionStoreProvider.set_store(InMemorySessionStore())
 
-        self.session: Session = Session()
-        SessionStoreProvider.get_store().save(self.session)
+        # Don't create session immediately - defer to async method
+        self.session = None
+        self._session_initialized = False
 
         # Allow caller‑provided graph store (avoids step‑not‑found issue)
         self.graph_store: GraphStore = graph_store or InMemoryGraphStore()
 
-        self.processor = GraphAwareToolProcessor(
-            self.session.id,
-            self.graph_store,
-            enable_caching=True,
-            enable_retries=True,
-        )
+        self.processor = None  # Will be initialized when session is ready
         self.plan_executor = PlanExecutor(self.graph_store)
         self.assistant_node_id: str = str(uuid.uuid4())
 
         self.tool_registry: Dict[str, Callable[..., Awaitable[Any]]] = {}
         self.function_registry: Dict[str, Callable[..., Any]] = {}
 
+    # ----------------------------------------------------------- async setup
+    async def _ensure_session(self):
+        """Ensure session is initialized (async)"""
+        if not self._session_initialized:
+            self.session = Session()
+            store = SessionStoreProvider.get_store()
+            await store.save(self.session)
+            
+            # Now initialize the processor
+            self.processor = GraphAwareToolProcessor(
+                self.session.id,
+                self.graph_store,
+                enable_caching=True,
+                enable_retries=True,
+            )
+            
+            self._session_initialized = True
+
     # ----------------------------------------------------------- registry
     def register_tool(self, name: str, fn: Callable[..., Awaitable[Any]]) -> None:
         """Register a tool function."""
         self.tool_registry[name] = fn
-        self.processor.register_tool(name, fn)
+        # Note: processor might not be initialized yet, so we'll register later
 
     def register_function(self, name: str, fn: Callable[..., Any]) -> None:
         """Register a function that can be called from plan steps."""
         self.function_registry[name] = fn
 
+    async def _register_tools_with_processor(self):
+        """Register tools with processor after it's initialized"""
+        if self.processor is None:
+            await self._ensure_session()
+        
+        # Register all tools
+        for name, fn in self.tool_registry.items():
+            self.processor.register_tool(name, fn)
+        
+        # Register function wrapper
         async def wrapper(args: Dict[str, Any]):
             fn_name = args.get("function")
             fn_args = args.get("args", {})
@@ -268,6 +293,10 @@ class UniversalExecutor:
         Dict[str, Any]
             The execution result, with 'success', 'variables', and 'results' keys
         """
+        # Ensure session is initialized
+        await self._ensure_session()
+        await self._register_tools_with_processor()
+        
         # Copy plan graph into our store if necessary
         if plan.graph is not self.graph_store:
             for node in plan.graph.nodes.values():

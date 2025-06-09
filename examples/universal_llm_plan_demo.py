@@ -15,51 +15,23 @@ from typing import Dict, Any, List, Optional
 
 # Import the official UniversalPlan implementation
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
-
-# ── demo tools (register on import) ──────────────────────────────────
-from sample_tools import WeatherTool, CalculatorTool, SearchTool  # noqa: F401
+from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
 
 # ── A2A plumbing -----------------------------------------------------
-from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from chuk_session_manager.models.session import Session
 from chuk_ai_planner.models import ToolCall
 from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
-from chuk_ai_planner.processor import GraphAwareToolProcessor
 from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
-from chuk_ai_planner.utils.registry_helpers import execute_tool
 
 from dotenv import load_dotenv
 load_dotenv()
 
 # ── OpenAI (optional) -------------------------------------------------
-from chuk_ai_planner.demo.llm_simulator import simulate_llm_call
 try:
     from openai import AsyncOpenAI
 except ImportError:
     AsyncOpenAI = None  # type: ignore
 
-# ── quick registry name helper ---------------------------------------
-from chuk_tool_processor.registry import default_registry
-def registry_names():
-    if hasattr(default_registry, "iter_tools"):
-        for meta in default_registry.iter_tools():
-            yield meta.name
-    elif hasattr(default_registry, "tools"):
-        yield from default_registry.tools.keys()             # type: ignore[attr-defined]
-    else:
-        yield from getattr(default_registry, "_tools", {}).keys()
-
-# universal async adapter (same as earlier demo) ----------------------
-async def adapter(tool_name: str, args: Dict[str, Any]) -> Any:
-    tc = {"id": "call",
-          "type": "function",
-          "function": {"name": tool_name, "arguments": json.dumps(args)}}
-    return await execute_tool(tc, _parent_event_id=None, _assistant_node_id=None)
-
-def reg(proc: GraphAwareToolProcessor, name: str):
-    proc.register_tool(name, lambda a, _n=name: adapter(_n, a))
-
-# -------------------------------------------------------------------- LLM helpers
+# ── LLM helpers -------------------------------------------------------
 LLM_SYSTEM_MSG = (
     "You are an assistant that converts a natural-language task into a JSON "
     "plan. Return ONLY valid JSON!\n"
@@ -97,7 +69,7 @@ async def call_llm_sim(task: str) -> Dict[str, Any]:
     """
     Simulation that returns a fixed plan for the coffee and weather task
     """
-    _ = await simulate_llm_call(task)  # just to show the prompt
+    print(f"🤖 Simulating LLM call for task: {task}\n")
     return {
         "title": "Coffee, Weather, Calculation, and Search",
         "steps": [
@@ -149,7 +121,7 @@ async def call_llm_sim(task: str) -> Dict[str, Any]:
 
 # -------------------------------------------------------------------- Universal Plan conversion
 def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
-    """Convert LLM-generated JSON to a UniversalPlan"""
+    """Convert LLM-generated JSON to a UniversalPlan using the enhanced API"""
     # Create a new universal plan
     plan = UniversalPlan(
         title=llm_json["title"],
@@ -164,49 +136,38 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
     # Create a mapping of LLM step index to Plan step ID
     step_ids = {}
     
-    # First pass: Create all steps without tool links
-    # This is different from the implementation in UniversalPlan
-    # where we use the standard Chuk Plan API
+    # Create all steps and their tool calls
     for i, step_data in enumerate(llm_json["steps"], 1):
         title = step_data["title"]
-        step_index = plan.add_step(title, parent=None)
+        tool = step_data.get("tool")
+        args = step_data.get("args", {})
         
-        # Get the step node
-        step_id = None
-        for node in plan._graph.nodes.values():
-            if node.__class__.__name__ == "PlanStep" and node.data.get("index") == step_index:
-                step_id = node.id
-                break
-        
-        if step_id:
+        if tool:
+            # Use the enhanced API to add tool steps
+            step_id = plan.add_tool_step(
+                title=title,
+                tool=tool,
+                args=args,
+                result_variable=f"result_{i}"
+            )
             step_ids[i] = step_id
+        else:
+            # Fallback for steps without tools
+            step_index = plan.add_step(title, parent=None)
+            # Find the step ID (this is a bit complex with the current API)
+            for node in plan._graph.nodes.values():
+                if (node.__class__.__name__ == "PlanStep" and 
+                    node.data.get("index") == step_index):
+                    step_ids[i] = node.id
+                    break
     
-    # Now add tool calls and dependencies
+    # Add dependencies after all steps are created
     for i, step_data in enumerate(llm_json["steps"], 1):
         step_id = step_ids.get(i)
         if not step_id:
             continue
             
-        # Create tool call
-        tool = step_data.get("tool")
-        args = step_data.get("args", {})
-        
-        if tool:
-            # Create and link tool call
-            tool_call = ToolCall(data={"name": tool, "args": args})
-            plan._graph.add_node(tool_call)
-            plan._graph.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step_id, dst=tool_call.id))
-            
-            # Store result variable using a custom edge
-            # This is a way to work around the EdgeKind limitation
-            plan._graph.add_edge(GraphEdge(
-                kind=EdgeKind.CUSTOM,
-                src=step_id,
-                dst=tool_call.id,
-                data={"type": "result_variable", "variable": f"result_{i}"}
-            ))
-        
-        # Add dependencies
+        # Add dependencies using step order edges
         for dep_idx in step_data.get("depends_on", []):
             dep_id = step_ids.get(dep_idx)
             if dep_id:
@@ -219,33 +180,75 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
     return plan
 
 
-# -------------------------------------------------------------------- Tool registration helper
-def create_mock_tool_executor(name):
-    """Create a mock executor for a given tool name"""
-    async def mock_executor(args):
-        if name == "grind_beans":
-            return {"status": "Beans ground successfully"}
-        elif name == "boil_water":
-            return {"status": "Water boiled to 200°F", "temperature": 200}
-        elif name == "brew_coffee":
-            return {"status": "Coffee brewed perfectly", "strength": "medium", "aroma": "excellent"}
-        elif name == "clean_station":
-            return {"status": "Coffee station cleaned"}
-        elif name == "calculator":
-            if args.get("operation") == "multiply":
-                a = float(args.get("a", 0))
-                b = float(args.get("b", 0))
-                return {"result": a * b, "operation": "multiply"}
-            return {"result": 0, "operation": args.get("operation", "unknown")}
-        elif name == "weather":
-            location = args.get("location", "Unknown")
-            return {"temperature": 72, "conditions": "Partly cloudy", "location": location}
-        elif name == "search":
-            query = args.get("query", "")
-            return {"results": [{"title": f"Result for {query}", "url": f"https://example.com/search?q={query}"}]}
-        else:
-            return {"status": f"Executed {name} with args: {args}"}
-    return mock_executor
+# -------------------------------------------------------------------- Tool implementations
+def create_tool_implementations():
+    """Create implementations for all the tools used in the demo"""
+    
+    async def grind_beans_tool(args):
+        print("☕ Grinding coffee beans...")
+        await asyncio.sleep(0.1)  # Simulate work
+        return {"status": "Beans ground successfully", "grind_size": "medium"}
+    
+    async def boil_water_tool(args):
+        print("🔥 Boiling water...")
+        await asyncio.sleep(0.1)
+        return {"status": "Water boiled to 200°F", "temperature": 200}
+    
+    async def brew_coffee_tool(args):
+        print("☕ Brewing coffee...")
+        await asyncio.sleep(0.1)
+        return {"status": "Coffee brewed perfectly", "strength": "medium", "aroma": "excellent"}
+    
+    async def clean_station_tool(args):
+        print("🧽 Cleaning coffee station...")
+        await asyncio.sleep(0.1)
+        return {"status": "Coffee station cleaned and sanitized"}
+    
+    async def calculator_tool(args):
+        print(f"🧮 Calculating: {args}")
+        if args.get("operation") == "multiply":
+            a = float(args.get("a", 0))
+            b = float(args.get("b", 0))
+            result = a * b
+            print(f"   {a} × {b} = {result}")
+            return {"result": result, "operation": "multiply", "operands": [a, b]}
+        return {"result": 0, "operation": args.get("operation", "unknown")}
+    
+    async def weather_tool(args):
+        location = args.get("location", "Unknown")
+        print(f"🌤️ Checking weather in {location}...")
+        await asyncio.sleep(0.1)
+        return {
+            "temperature": 72, 
+            "conditions": "Partly cloudy", 
+            "location": location,
+            "humidity": 65,
+            "wind_speed": "8 mph"
+        }
+    
+    async def search_tool(args):
+        query = args.get("query", "")
+        print(f"🔍 Searching for: {query}")
+        await asyncio.sleep(0.1)
+        return {
+            "query": query,
+            "results": [
+                {"title": f"Climate Change Adaptation Strategies", "url": "https://example.com/climate-adaptation"},
+                {"title": f"Best Practices for {query}", "url": "https://example.com/best-practices"},
+                {"title": f"Research on {query}", "url": "https://example.com/research"}
+            ],
+            "result_count": 3
+        }
+    
+    return {
+        "grind_beans": grind_beans_tool,
+        "boil_water": boil_water_tool,
+        "brew_coffee": brew_coffee_tool,
+        "clean_station": clean_station_tool,
+        "calculator": calculator_tool,
+        "weather": weather_tool,
+        "search": search_tool
+    }
 
 
 # -------------------------------------------------------------------- main flow
@@ -270,83 +273,52 @@ async def main(live: bool) -> None:
 
     print("\n📋 UNIVERSAL PLAN STRUCTURE\n")
     print(plan.outline(), "\n")
-    
-    # Create a simplified version of the plan to display
-    plan_display = {
-        "id": plan.id,
-        "title": plan.title,
-        "description": plan.description,
-        "tags": plan.tags,
-        "metadata": plan.metadata,
-        "steps": []
-    }
-    
-    # Get step information
-    for node in plan._graph.nodes.values():
-        if node.__class__.__name__ == "PlanStep":
-            step_info = {
-                "id": node.id,
-                "index": node.data.get("index"),
-                "title": node.data.get("description"),
-                "tool_calls": []
-            }
-            
-            # Find tool calls
-            for edge in plan._graph.get_edges(src=node.id, kind=EdgeKind.PLAN_LINK):
-                tool_node = plan._graph.get_node(edge.dst)
-                if tool_node and tool_node.__class__.__name__ == "ToolCall":
-                    step_info["tool_calls"].append({
-                        "name": tool_node.data.get("name"),
-                        "args": tool_node.data.get("args", {})
-                    })
-            
-            # Find dependencies
-            dependencies = []
-            for edge in plan._graph.get_edges(dst=node.id, kind=EdgeKind.STEP_ORDER):
-                dep_node = plan._graph.get_node(edge.src)
-                if dep_node:
-                    dependencies.append(dep_node.data.get("index"))
-            
-            if dependencies:
-                step_info["depends_on"] = dependencies
-            
-            plan_display["steps"].append(step_info)
-    
-    print("\n📝 UNIVERSAL PLAN DETAILS\n")
-    print(json.dumps(plan_display, indent=2), "\n")
 
-    # Set up processor for execution
+    # Set up executor for execution
     print("\n🚀 EXECUTING PLAN...\n")
-    SessionStoreProvider.set_store(InMemorySessionStore())
-    session = Session(); SessionStoreProvider.get_store().save(session)
-
-    proc = GraphAwareToolProcessor(session_id=session.id, graph_store=plan.graph)
-
-    # Explicitly register all required tools with proper implementations
-    required_tools = [
-        "grind_beans", "boil_water", "brew_coffee", "clean_station", 
-        "calculator", "weather", "search"
-    ]
     
-    # Register all the tools with mock executors
-    for tool_name in required_tools:
-        proc.register_tool(tool_name, create_mock_tool_executor(tool_name))
+    # Create executor
+    executor = UniversalExecutor(graph_store=plan.graph)
     
-    print("Registered tools:", required_tools)
+    # Register all tools
+    tools = create_tool_implementations()
+    for tool_name, tool_func in tools.items():
+        executor.register_tool(tool_name, tool_func)
+    
+    print(f"Registered tools: {list(tools.keys())}\n")
 
-    # Run plan
-    results = await proc.process_plan(
-        plan_node_id=plan_id,
-        assistant_node_id="assistant",
-        llm_call_fn=lambda _: None,
-    )
-
-    print("\n✅ TOOL RESULTS\n")
-    for r in results:
-        print(f"• {r.tool}\n{json.dumps(r.result, indent=2)}\n")
-
-    print_session_events(session)
-    print_graph_structure(plan.graph)
+    # Execute the plan
+    try:
+        result = await executor.execute_plan(plan)
+        
+        if result["success"]:
+            print("\n✅ PLAN EXECUTED SUCCESSFULLY!\n")
+            
+            # Show results
+            print("📊 EXECUTION RESULTS:\n")
+            for var_name, var_value in result["variables"].items():
+                if var_name.startswith("result_"):
+                    step_num = var_name.split("_")[1]
+                    print(f"Step {step_num} result:")
+                    print(f"  {json.dumps(var_value, indent=2)}\n")
+            
+            print("🎯 KEY OUTCOMES:\n")
+            # Extract key results
+            for var_name, var_value in result["variables"].items():
+                if var_name == "result_4":  # Weather result
+                    weather = var_value
+                    print(f"🌤️ Weather in {weather.get('location')}: {weather.get('temperature')}°F, {weather.get('conditions')}")
+                elif var_name == "result_5":  # Calculator result
+                    calc = var_value
+                    print(f"🧮 Calculation: {calc.get('result')}")
+                elif var_name == "result_6":  # Search result
+                    search = var_value
+                    print(f"🔍 Found {search.get('result_count')} search results for '{search.get('query')}'")
+        else:
+            print(f"\n❌ PLAN EXECUTION FAILED: {result.get('error')}\n")
+            
+    except Exception as e:
+        print(f"\n💥 EXECUTION ERROR: {e}\n")
 
 
 # -------------------------------------------------------------------- entry-point

@@ -47,5 +47,7 @@ multi_line_output = 3
 
 [dependency-groups]
 dev = [
+    "matplotlib>=3.10.3",
+    "networkx>=3.5",
     "pytest-asyncio>=1.0.0",
 ]

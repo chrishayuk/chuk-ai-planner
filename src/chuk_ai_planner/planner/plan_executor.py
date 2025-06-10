@@ -28,14 +28,14 @@ from __future__ import annotations
 import json
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 
-
 # graph imports
 from chuk_ai_planner.models import GraphNode, NodeKind
 from chuk_ai_planner.models.edges import EdgeKind
 from chuk_ai_planner.store.base import GraphStore
 from chuk_session_manager.models.event_type import EventType
 
-
+# Import serialization utilities
+from ..utils.serialization import unfreeze_data
 
 
 # --------------------------------------------------------------------------- helpers
@@ -154,12 +154,19 @@ class PlanExecutor:
             if not tool_node or tool_node.kind != NodeKind.TOOL_CALL:
                 continue
 
+            # Get tool data and unfreeze for JSON serialization
+            tool_name = tool_node.data.get("name")
+            tool_args = tool_node.data.get("args", {})
+            
+            # Unfreeze the args for JSON serialization
+            unfrozen_args = unfreeze_data(tool_args)
+
             tool_call = {
                 "id": tool_node.id,
                 "type": "function",
                 "function": {
-                    "name": tool_node.data.get("name"),
-                    "arguments": json.dumps(tool_node.data.get("args", {})),
+                    "name": tool_name,
+                    "arguments": json.dumps(unfrozen_args),
                 },
             }
             res = await process_tool_call(tool_call, start_evt.id, assistant_node_id)

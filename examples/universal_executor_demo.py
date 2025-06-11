@@ -64,14 +64,14 @@ async def batch_weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"results": results}
 
 
-def analyze_weather_function(weather_data: Dict[str, Any]) -> Dict[str, Any]:
+def analyze_weather_function(**kwargs) -> Dict[str, Any]:
     """
     Analyze weather data to extract statistics.
     
     Parameters
     ----------
-    weather_data : Dict[str, Any]
-        Weather data with a 'results' key containing location data
+    **kwargs
+        Keyword arguments, expecting 'weather_data' key
         
     Returns
     -------
@@ -79,9 +79,43 @@ def analyze_weather_function(weather_data: Dict[str, Any]) -> Dict[str, Any]:
         Statistical analysis of the weather data
     """
     print("📊 Analyzing weather data")
+    print(f"📊 Received kwargs: {list(kwargs.keys())}")
     
-    # Extract results from the weather data
-    results = weather_data.get("results", weather_data)
+    # Extract weather_data from kwargs
+    weather_data = kwargs.get("weather_data", {})
+    
+    # Debug: Print the type and content
+    print(f"📊 weather_data type: {type(weather_data)}")
+    print(f"📊 weather_data content: {weather_data}")
+    
+    # Handle case where weather_data might be a string (JSON)
+    if isinstance(weather_data, str):
+        try:
+            import json
+            weather_data = json.loads(weather_data)
+            print("📊 Successfully parsed JSON string")
+        except (json.JSONDecodeError, TypeError):
+            print("📊 Failed to parse as JSON, treating as string")
+            return {
+                "error": "Invalid weather data format",
+                "received_type": str(type(weather_data)),
+                "received_content": str(weather_data)[:100]
+            }
+    
+    # Handle case where weather_data might be nested in a results key
+    if isinstance(weather_data, dict) and "results" in weather_data:
+        results = weather_data["results"]
+    elif isinstance(weather_data, dict):
+        results = weather_data
+    else:
+        print(f"📊 Unexpected data type: {type(weather_data)}")
+        return {
+            "error": "Unexpected weather data type",
+            "received_type": str(type(weather_data)),
+            "received_content": str(weather_data)[:100]
+        }
+    
+    print(f"📊 Processing {len(results)} locations")
     
     # Calculate statistics
     n = len(results)
@@ -100,6 +134,8 @@ def analyze_weather_function(weather_data: Dict[str, Any]) -> Dict[str, Any]:
     conditions = {}
     
     for location, data in results.items():
+        print(f"📊 Processing {location}: {data}")
+        
         # Extract temperature
         temp = data.get("temperature")
         if temp is not None:
@@ -121,23 +157,26 @@ def analyze_weather_function(weather_data: Dict[str, Any]) -> Dict[str, Any]:
     # Find most common condition
     most_common = max(conditions.items(), key=lambda x: x[1])[0] if conditions else "Unknown"
     
-    return {
+    analysis_result = {
         "average_temperature": round(avg_temp, 1),
         "average_humidity": round(avg_humidity, 1),
         "most_common_condition": most_common,
         "condition_distribution": conditions,
         "locations_analyzed": n,
     }
+    
+    print(f"📊 Analysis complete: {analysis_result}")
+    return analysis_result
 
 
-def create_report_function(analysis: Dict[str, Any]) -> Dict[str, Any]:
+def create_report_function(**kwargs) -> Dict[str, Any]:
     """
     Create a report from analysis data.
     
     Parameters
     ----------
-    analysis : Dict[str, Any]
-        Statistical analysis of weather data
+    **kwargs
+        Keyword arguments, expecting 'analysis' key
         
     Returns
     -------
@@ -145,9 +184,24 @@ def create_report_function(analysis: Dict[str, Any]) -> Dict[str, Any]:
         Formatted report with title and summary
     """
     print("📝 Generating weather report")
+    print(f"📝 Received kwargs: {list(kwargs.keys())}")
+    
+    analysis = kwargs.get("analysis", {})
+    print(f"📝 Analysis type: {type(analysis)}")
+    print(f"📝 Analysis data: {analysis}")
+    
+    # Handle case where analysis might be a string (JSON)
+    if isinstance(analysis, str):
+        try:
+            import json
+            analysis = json.loads(analysis)
+            print("📝 Successfully parsed analysis JSON string")
+        except (json.JSONDecodeError, TypeError):
+            print("📝 Failed to parse analysis as JSON")
+            analysis = {}
     
     # Create the report
-    return {
+    report = {
         "title": "Global Weather Analysis Report",
         "summary": (
             f"{analysis.get('locations_analyzed', 0)} cities analysed. "
@@ -157,18 +211,19 @@ def create_report_function(analysis: Dict[str, Any]) -> Dict[str, Any]:
         ),
         "details": analysis,
     }
+    
+    print(f"📝 Report created: {report['summary']}")
+    return report
 
 
-def format_visualization_function(weather_data: Dict[str, Any], analysis: Dict[str, Any]) -> Dict[str, Any]:
+def format_visualization_function(**kwargs) -> Dict[str, Any]:
     """
     Format data for visualization.
     
     Parameters
     ----------
-    weather_data : Dict[str, Any]
-        Weather data with a 'results' key containing location data
-    analysis : Dict[str, Any]
-        Statistical analysis of weather data
+    **kwargs
+        Keyword arguments, expecting 'weather_data' and 'analysis' keys
         
     Returns
     -------
@@ -176,9 +231,42 @@ def format_visualization_function(weather_data: Dict[str, Any], analysis: Dict[s
         Data formatted for visualization
     """
     print("🎨 Formatting visualization data")
+    print(f"🎨 Received kwargs: {list(kwargs.keys())}")
+    
+    weather_data = kwargs.get("weather_data", {})
+    analysis = kwargs.get("analysis", {})
+    
+    print(f"🎨 weather_data type: {type(weather_data)}")
+    print(f"🎨 analysis type: {type(analysis)}")
+    
+    # Handle case where data might be strings (JSON)
+    if isinstance(weather_data, str):
+        try:
+            import json
+            weather_data = json.loads(weather_data)
+            print("🎨 Successfully parsed weather_data JSON string")
+        except (json.JSONDecodeError, TypeError):
+            print("🎨 Failed to parse weather_data as JSON")
+            weather_data = {}
+    
+    if isinstance(analysis, str):
+        try:
+            import json
+            analysis = json.loads(analysis)
+            print("🎨 Successfully parsed analysis JSON string")
+        except (json.JSONDecodeError, TypeError):
+            print("🎨 Failed to parse analysis as JSON")
+            analysis = {}
     
     # Extract results safely
-    results = weather_data.get("results", weather_data)
+    if isinstance(weather_data, dict) and "results" in weather_data:
+        results = weather_data["results"]
+    elif isinstance(weather_data, dict):
+        results = weather_data
+    else:
+        results = {}
+    
+    print(f"🎨 Processing {len(results)} locations for visualization")
     
     # Create temperature data for visualization
     temps = []
@@ -193,11 +281,14 @@ def format_visualization_function(weather_data: Dict[str, Any], analysis: Dict[s
     for condition, count in analysis.get("condition_distribution", {}).items():
         conds.append({"condition": condition, "count": count})
     
-    return {
+    viz_result = {
         "title": "Global Weather Visualization",
         "temperature_data": temps,
         "condition_data": conds,
     }
+    
+    print(f"🎨 Visualization data ready: {len(temps)} temperature points, {len(conds)} conditions")
+    return viz_result
 
 
 # --------------------------------------------------------------------------- plan factory
@@ -277,6 +368,10 @@ async def main():
     executor.register_function("format_visualization", format_visualization_function)
 
     print("\n▶️ Executing Plan...")
+    
+    # Debug: Check plan variables before execution
+    print(f"🐛 Plan variables: {plan.variables}")
+    
     try:
         res = await executor.execute_plan(plan)
     except Exception as e:

@@ -20,6 +20,7 @@ import os
 import pprint
 import uuid
 from typing import Any, Dict, List, Optional
+from types import MappingProxyType
 
 # Import the official UniversalPlan implementation
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
@@ -39,6 +40,48 @@ try:
     from openai import AsyncOpenAI
 except ImportError:
     AsyncOpenAI = None
+
+# -------------------------------------------------------------------- JSON Serialization Helper
+def make_json_serializable(obj: Any) -> Any:
+    """Convert potentially frozen data structures to JSON-serializable format."""
+    try:
+        # Try to import _ReadOnlyList if it exists
+        from chuk_ai_planner.models.base import _ReadOnlyList
+    except ImportError:
+        # If not available, create a dummy class that will never match
+        class _ReadOnlyList:
+            pass
+    
+    if isinstance(obj, MappingProxyType):
+        # Convert MappingProxyType to regular dict
+        return {k: make_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, _ReadOnlyList):
+        # Convert _ReadOnlyList to regular list
+        return [make_json_serializable(item) for item in obj]
+    elif isinstance(obj, dict):
+        # Handle nested dicts that might contain frozen structures
+        return {k: make_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        # Handle regular lists and tuples
+        return [make_json_serializable(item) for item in obj]
+    elif isinstance(obj, frozenset):
+        # Convert frozensets to lists for JSON compatibility
+        return [make_json_serializable(item) for item in obj]
+    elif hasattr(obj, '__iter__') and hasattr(obj, '__getitem__') and hasattr(obj, '__len__'):
+        # This catches other list-like objects, but we need to be careful not to catch strings or dicts
+        if isinstance(obj, (str, bytes, dict)):
+            # These are iterable but should not be converted to lists
+            return obj
+        else:
+            # It's a list-like object, convert to list
+            try:
+                return [make_json_serializable(item) for item in obj]
+            except (TypeError, AttributeError):
+                # If iteration fails, return as-is
+                return obj
+    else:
+        # Primitive types are already JSON serializable
+        return obj
 
 # -------------------------------------------------------------------- Mock Tool Implementations
 async def weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -404,7 +447,7 @@ async def main(live: bool = False) -> None:
             "title": plan.title,
             "description": plan.description,
             "tags": plan.tags,
-            "metadata": plan.metadata,
+            "metadata": make_json_serializable(plan.metadata),  # Use helper function
             "steps": []
         }
         
@@ -421,10 +464,11 @@ async def main(live: bool = False) -> None:
                 for edge in plan._graph.get_edges(src=node.id, kind=EdgeKind.PLAN_LINK):
                     tool_node = plan._graph.get_node(edge.dst)
                     if tool_node and tool_node.__class__.__name__ == "ToolCall":
-                        step_info["tool_calls"].append({
+                        tool_call_info = {
                             "name": tool_node.data.get("name"),
-                            "args": tool_node.data.get("args", {})
-                        })
+                            "args": make_json_serializable(tool_node.data.get("args", {}))  # Use helper function
+                        }
+                        step_info["tool_calls"].append(tool_call_info)
                 
                 # Find dependencies
                 dependencies = []
@@ -489,10 +533,10 @@ async def main(live: bool = False) -> None:
                 print(f"\n--- Result for step {name[7:]} ---")
                 pprint.pprint(value, width=100, sort_dicts=False)
         
-        # Save results to file
+        # Save results to file (use helper function for JSON serialization)
         output_file = "llm_plan_results.json"
         with open(output_file, "w") as f:
-            json.dump(result["variables"], f, indent=2, default=str)
+            json.dump(make_json_serializable(result["variables"]), f, indent=2, default=str)
         print(f"\n💾 Results saved to {output_file}")
         
     except Exception as e:

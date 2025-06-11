@@ -30,6 +30,44 @@ class NodeKind(str, Enum):
     SUMMARY      = "summary"
 
 
+def _convert_mappingproxy_to_dict(obj: Any) -> Any:
+    """
+    Recursively convert MappingProxyType objects to regular dictionaries
+    to make them compatible with deepcopy/pickle operations.
+    
+    Parameters
+    ----------
+    obj : Any
+        The object to convert
+        
+    Returns
+    -------
+    Any
+        The converted object with MappingProxyType objects converted to dicts
+    """
+    if isinstance(obj, MappingProxyType):
+        # Convert MappingProxyType to dict and recursively process
+        return {k: _convert_mappingproxy_to_dict(v) for k, v in obj.items()}
+    elif isinstance(obj, dict):
+        # Process regular dictionaries recursively
+        return {k: _convert_mappingproxy_to_dict(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        # Process lists and tuples recursively
+        converted = [_convert_mappingproxy_to_dict(item) for item in obj]
+        return converted if isinstance(obj, list) else tuple(converted)
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes)):
+        # Handle other iterable types (like _ReadOnlyList)
+        try:
+            # Try to convert to list if it's an iterable
+            return [_convert_mappingproxy_to_dict(item) for item in obj]
+        except (TypeError, AttributeError):
+            # If conversion fails, return as-is
+            return obj
+    else:
+        # Return primitive types as-is
+        return obj
+
+
 def _deep_freeze(obj: Any) -> Any:
     """
     Recursively freeze data structures to make them deeply immutable.
@@ -226,25 +264,65 @@ class GraphNode(_FrozenMixin, BaseModel):
             raise TypeError(f"Data must be a dictionary, got {type(v)}")
         return v
 
+    def _simple_copy(self, data: Any) -> Any:
+        """
+        Simple recursive copy that doesn't use deepcopy.
+        Used as fallback when deepcopy fails.
+        """
+        if isinstance(data, (MappingProxyType, dict)):
+            return {k: self._simple_copy(v) for k, v in data.items()}
+        elif isinstance(data, (list, tuple)):
+            copied = [self._simple_copy(item) for item in data]
+            return copied if isinstance(data, list) else tuple(copied)
+        elif hasattr(data, '__iter__') and not isinstance(data, (str, bytes)):
+            try:
+                return [self._simple_copy(item) for item in data]
+            except (TypeError, AttributeError):
+                return data
+        else:
+            return data
+
     @model_validator(mode="after")
     def _freeze_data(self):
         """
         Deep freeze the data dictionary to ensure complete immutability.
+        Fixed to handle MappingProxyType objects properly.
         
         This validator:
-        1. Deep copies the data to prevent external mutations
-        2. Recursively freezes all nested structures
-        3. Wraps the result in MappingProxyType for top-level immutability
+        1. Converts any MappingProxyType objects to regular dicts
+        2. Deep copies the data to prevent external mutations
+        3. Recursively freezes all nested structures
+        4. Wraps the result in MappingProxyType for top-level immutability
         """
-        # Deep copy the data to prevent external references from affecting the node
-        data_copy = copy.deepcopy(dict(self.data))
+        if not self.data:
+            object.__setattr__(self, "data", MappingProxyType({}))
+            return self
         
-        # Deep freeze all nested structures
-        frozen_data = _deep_freeze(data_copy)
-        
-        # Use object.__setattr__ to bypass the frozen model restriction
-        # This is safe because we're in the validator during object creation
-        object.__setattr__(self, "data", frozen_data)
+        try:
+            # First convert any MappingProxyType objects to regular dicts
+            # to make them compatible with deepcopy
+            converted_data = _convert_mappingproxy_to_dict(dict(self.data))
+            
+            # Now we can safely deep copy the converted data
+            data_copy = copy.deepcopy(converted_data)
+            
+            # Deep freeze all nested structures
+            frozen_data = _deep_freeze(data_copy)
+            
+            # Use object.__setattr__ to bypass the frozen model restriction
+            # This is safe because we're in the validator during object creation
+            object.__setattr__(self, "data", frozen_data)
+            
+        except Exception as e:
+            # Fallback: if deepcopy still fails, try a simpler approach
+            try:
+                # Simple recursive copy without deepcopy
+                simple_copy = self._simple_copy(self.data)
+                frozen_data = _deep_freeze(simple_copy)
+                object.__setattr__(self, "data", frozen_data)
+            except Exception:
+                # Last resort: return the original data as MappingProxyType
+                object.__setattr__(self, "data", MappingProxyType(dict(self.data)))
         
         return self
 

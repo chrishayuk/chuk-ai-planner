@@ -1,6 +1,6 @@
 # chuk_ai_planner/planner/universal_plan_executor.py
 """
-Universal Plan Executor
+Universal Plan Executor - FIXED VERSION
 ================================
 """
 
@@ -75,7 +75,6 @@ class UniversalExecutor:
     def register_tool(self, name: str, fn: Callable[..., Awaitable[Any]]) -> None:
         """Register a tool function."""
         self.tool_registry[name] = fn
-        # Note: processor might not be initialized yet, so we'll register later
 
     def register_function(self, name: str, fn: Callable[..., Any]) -> None:
         """Register a function that can be called from plan steps."""
@@ -227,6 +226,27 @@ class UniversalExecutor:
         # --- 5. fallback --------------------------------------------------
         return getattr(obj, "__dict__", obj)
 
+    # ----------------------------------------------------------- FIXED: result variable lookup
+    def _find_result_variable(self, step_id: str, tool_id: str = None) -> Optional[str]:
+        """
+        Find the result variable for a step by checking custom edges.
+        This is the key fix - properly retrieve result_variable from custom edges.
+        """
+        # Look for custom edges from step to tool with result_variable data
+        for edge in self.graph_store.get_edges(src=step_id, kind=EdgeKind.CUSTOM):
+            edge_data = edge.data or {}
+            if (edge_data.get("type") == "result_variable" and 
+                (tool_id is None or edge.dst == tool_id)):
+                return edge_data.get("variable")
+        
+        # Fallback: check if tool_id is provided and has result_variable in its data
+        if tool_id:
+            tool_node = self.graph_store.get_node(tool_id)
+            if tool_node:
+                return tool_node.data.get("result_variable")
+        
+        return None
+
     # ----------------------------------------------------------- topological sort
     def _topological_sort(self, steps: List[Any], dependencies: Dict[str, Set[str]]) -> List[Any]:
         """Sort steps based on dependencies using topological sort."""
@@ -265,14 +285,13 @@ class UniversalExecutor:
         
         return sorted_steps
 
-    # ----------------------------------------------------------- execute single step
+    # ----------------------------------------------------------- FIXED: execute single step
     async def _execute_step(self, step: Any, context: Dict[str, Any]) -> List[Any]:
         """Execute a single step and return results as a list (matching test expectations)."""
         step_id = step.id
         
         # Find tool calls for this step
         results = []
-        step_result_var = step.data.get("result_variable")  # Get result_variable from step
         
         for edge in self.graph_store.get_edges(src=step_id, kind=EdgeKind.PLAN_LINK):
             tool_node = self.graph_store.get_node(edge.dst)
@@ -280,6 +299,9 @@ class UniversalExecutor:
                 # Get tool info
                 tool_name = tool_node.data.get("name")
                 args = tool_node.data.get("args", {})
+                
+                # FIXED: Find result variable using the new method
+                result_variable = self._find_result_variable(step_id, tool_node.id)
                 
                 # Resolve variables in args FIRST
                 resolved_args = self._resolve_vars(args, context["variables"])
@@ -297,6 +319,11 @@ class UniversalExecutor:
                         # Handle function calls
                         fn_name = json_safe_args.get("function")
                         fn_args = json_safe_args.get("args", {})
+                        
+                        # CRITICAL FIX: Resolve variables in function args again
+                        # The function args might still contain variable references
+                        fn_args = self._resolve_vars(fn_args, context["variables"])
+                        fn_args = self._get_json_serializable_data(fn_args)
                         
                         # Ensure fn_args is a dict
                         if not isinstance(fn_args, dict):
@@ -327,12 +354,10 @@ class UniversalExecutor:
                     # Store result for return
                     results.append(result)
                     
-                    # Store result immediately if we have a result_variable
-                    # Check step first, then tool_node for result_variable
-                    result_var = step_result_var or tool_node.data.get("result_variable")
-                    if result_var:
-                        context["variables"][result_var] = result
-                        
+                    # FIXED: Store result immediately if we have a result_variable
+                    if result_variable:
+                        context["variables"][result_variable] = result
+                    
                 except Exception as e:
                     # For test compatibility, we need to raise the exception
                     # rather than return an error dict
@@ -380,16 +405,6 @@ class UniversalExecutor:
             "results": {},
         }
 
-        # Get result variable mappings from the plan itself
-        result_variable_map = {}
-        
-        # Check various possible attributes where result variables might be stored
-        for attr in ['_result_variables', 'result_variables', '_step_results', 'step_results']:
-            if hasattr(plan, attr):
-                value = getattr(plan, attr)
-                if isinstance(value, dict):
-                    result_variable_map.update(value)
-
         try:
             # Get all steps for the plan - try multiple approaches
             steps = self.plan_executor.get_plan_steps(plan.id)
@@ -431,8 +446,6 @@ class UniversalExecutor:
             # Execute steps in order
             for step in sorted_steps:
                 step_results = await self._execute_step(step, ctx)
-                # Always process step results to ensure result_variable assignment
-                self._process_step_results(step, step_results, ctx, result_variable_map)
             
             return {"success": True, **ctx}
         except Exception as exc:
@@ -487,49 +500,6 @@ class UniversalExecutor:
             
         except Exception:
             return None
-
-    # ----------------------------------------------------------- helpers
-    def _process_step_results(self, step: Any, results: List[Any], context: Dict[str, Any], result_variable_map: Dict[str, str] = None):
-        """Process step results and store them in the variables dict."""
-        if not results:
-            return True
-        
-        result_variable_map = result_variable_map or {}
-        
-        # Check multiple possible locations for result_variable
-        step_result_var = step.data.get("result_variable")
-        
-        # Check tool calls for result_variable 
-        tool_result_var = None
-        for edge in self.graph_store.get_edges(src=step.id, kind=EdgeKind.PLAN_LINK):
-            tool_node = self.graph_store.get_node(edge.dst)
-            if tool_node and tool_node.kind.value == "tool_call":
-                tool_result_var = tool_node.data.get("result_variable")
-                break
-        
-        # Check the result variable map
-        map_result_var = result_variable_map.get(step.id)
-        
-        # Use the first available result_variable
-        result_var = step_result_var or tool_result_var or map_result_var
-        
-        if result_var and results:
-            value = self._extract_value(results[0])
-            context["variables"][result_var] = value
-            return True
-        
-        # FALLBACK: Use heuristics based on step description and test patterns
-        step_desc = step.data.get("description", "").lower()
-        if "hello" in step_desc and results:
-            context["variables"]["greeting_result"] = results[0]
-        elif "summary" in step_desc and results:
-            context["variables"]["summary_result"] = results[0]
-        elif "async" in step_desc and results:
-            context["variables"]["async_result"] = results[0]
-        elif "sync" in step_desc and results:
-            context["variables"]["sync_result"] = results[0]
-        
-        return True
 
     # ----------------------------------------------------------- convenience
     async def execute_plan_by_id(self, plan_id: str, variables: Optional[Dict[str, Any]] = None):

@@ -152,14 +152,21 @@ class UniversalExecutor:
     def _resolve_vars(self, value: Any, variables: Dict[str, Any]) -> Any:
         """
         ENHANCED: Recursively resolve variable references with support for nested field access.
-        Supports both ${variable} and ${variable.field.subfield} syntax.
+        Supports both ${variable} and ${variable.field.subfield} syntax, including template strings.
         """
-        # Handle string variable references like "${varname}" or "${varname.field}"
+        # Handle string variable references and template strings
         if isinstance(value, str):
-            if value.startswith("${") and value.endswith("}"):
+            # Check if the entire string is a single variable reference
+            if value.startswith("${") and value.endswith("}") and value.count("${") == 1:
                 var_path = value[2:-1]  # Remove ${ and }
                 return self._resolve_nested_variable(var_path, variables)
-            return value  # Keep as-is if not a variable
+            
+            # Check if string contains variable references (template string)
+            elif "${" in value:
+                return self._resolve_template_string(value, variables)
+            
+            # Regular string with no variables
+            return value
         
         # Handle dictionaries (both regular and MappingProxyType)
         elif isinstance(value, (dict, MappingProxyType)):
@@ -187,6 +194,29 @@ class UniversalExecutor:
         else:
             return value
     
+    def _resolve_template_string(self, template: str, variables: Dict[str, Any]) -> str:
+        """
+        ENHANCED: Resolve template strings containing multiple variable references.
+        Example: "https://${api.endpoint}:${api.port}/users/${user.id}"
+        """
+        import re
+        
+        def replace_var(match):
+            var_path = match.group(1)  # Extract content between ${ and }
+            resolved = self._resolve_nested_variable(var_path, variables)
+            
+            # If resolution failed (returns original ${...}), keep as-is
+            if isinstance(resolved, str) and resolved.startswith("${") and resolved.endswith("}"):
+                return resolved
+            
+            # Convert resolved value to string for template interpolation
+            return str(resolved)
+        
+        # Find all ${...} patterns and replace them
+        pattern = r'\$\{([^}]+)\}'
+        result = re.sub(pattern, replace_var, template)
+        return result
+    
     def _resolve_nested_variable(self, var_path: str, variables: Dict[str, Any]) -> Any:
         """
         ENHANCED: Resolve nested variable access like 'variable.field.subfield'.
@@ -201,7 +231,7 @@ class UniversalExecutor:
                 # Variable or field not found
                 print(f"🔍 Variable resolution: '{part}' not found in {'.'.join(parts[:i]) or 'variables'}")
                 print(f"🔍 Available keys: {list(current.keys()) if isinstance(current, dict) else 'not a dict'}")
-                return value  # Return original if not found
+                return f"${{{var_path}}}"  # Return original variable string if not found
         
         return current
     

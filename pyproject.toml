@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chuk-ai-planner"
-version = "0.1.1"
+version = "0.2"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,7 +12,7 @@ dependencies = [
     "asyncio>=3.4.3",
     "bs4>=0.0.2",
     "chuk-session-manager>=0.1.0",
-    "chuk-tool-processor>=0.1.7",
+    "chuk-tool-processor>=0.4.1",
     "geopy>=2.4.1",
     "lxml-html-clean>=0.4.2",
     "openai>=1.76.2",

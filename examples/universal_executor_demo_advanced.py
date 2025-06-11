@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# examples/advanced_universal_executor_demo.py
+# examples/universal_executor_demo_advanced.py
 """
 Advanced Universal Executor Demo
 ===============================
@@ -196,34 +196,9 @@ def clean_data_function(**kwargs) -> Dict[str, Any]:
 
 def analyze_function(**kwargs) -> Dict[str, Any]:
     """Function that analyzes data and generates insights"""
-    print(f"🔍 analyze_function received kwargs: {list(kwargs.keys())}")
-    
-    cleaned_data_obj = kwargs.get("cleaned_data", {})
+    cleaned_data = kwargs.get("cleaned_data", [])
     data_type = kwargs.get("data_type", "unknown")
-    
-    print(f"🔍 cleaned_data_obj type: {type(cleaned_data_obj)}")
-    print(f"🔍 data_type: {data_type}")
-    
-    # Handle case where cleaned_data_obj might be a string
-    if isinstance(cleaned_data_obj, str):
-        print("🔍 WARNING: cleaned_data_obj is a string, expected dict")
-        try:
-            import json
-            cleaned_data_obj = json.loads(cleaned_data_obj)
-            print("🔍 Successfully parsed as JSON")
-        except json.JSONDecodeError:
-            print("🔍 Failed to parse as JSON")
-            return {"error": "Invalid cleaned data format", "insights": []}
-    
-    # Extract the actual cleaned_data list from the object
-    if isinstance(cleaned_data_obj, dict):
-        cleaned_data = cleaned_data_obj.get("cleaned_data", [])
-    else:
-        print(f"🔍 ERROR: Expected dict, got {type(cleaned_data_obj)}")
-        return {"error": "Invalid cleaned data format", "insights": []}
-    
-    print(f"🔍 Extracted cleaned_data type: {type(cleaned_data)}")
-    print(f"🔍 Analyzing {data_type} data ({len(cleaned_data) if isinstance(cleaned_data, list) else 'unknown count'} items)...")
+    print(f"\n🔍 Analyzing {data_type} data ({len(cleaned_data) if isinstance(cleaned_data, list) else 'unknown count'} items)...")
     
     if not isinstance(cleaned_data, list):
         print(f"🔍 ERROR: Expected list for cleaned_data, got {type(cleaned_data)}")
@@ -393,7 +368,7 @@ def create_data_processing_subplan(data_type: str) -> UniversalPlan:
         title=f"Analyze {data_type} data",
         function="analyze",
         args={
-            "cleaned_data": "${cleaned_data}",  # Pass the whole cleaned_data object
+            "cleaned_data": "${cleaned_data.cleaned_data}",  # Now properly supported!
             "data_type": data_type
         },
         result_variable="analysis_result",

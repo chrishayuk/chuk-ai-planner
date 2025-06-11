@@ -1,6 +1,6 @@
 # chuk_ai_planner/planner/universal_plan_executor.py
 """
-Universal Plan Executor - FIXED VERSION
+Universal Plan Executor - ENHANCED VERSION WITH FIXED VARIABLE RESOLUTION
 ================================
 """
 
@@ -148,19 +148,18 @@ class UniversalExecutor:
             # Primitive types are already JSON serializable
             return data
 
-    # ----------------------------------------------------------- variable helpers
+    # ----------------------------------------------------------- ENHANCED variable helpers
     def _resolve_vars(self, value: Any, variables: Dict[str, Any]) -> Any:
         """
-        Recursively resolve variable references in a value.
-        Fixed to handle frozen data structures properly and preserve types.
+        ENHANCED: Recursively resolve variable references with support for nested field access.
+        Supports both ${variable} and ${variable.field.subfield} syntax.
         """
-        # Handle string variable references like "${varname}" - MUST BE FIRST
+        # Handle string variable references like "${varname}" or "${varname.field}"
         if isinstance(value, str):
             if value.startswith("${") and value.endswith("}"):
-                var_name = value[2:-1]  # Remove ${ and }
-                if var_name in variables:
-                    return variables[var_name]
-            return value  # Keep as-is if not a variable or variable not found
+                var_path = value[2:-1]  # Remove ${ and }
+                return self._resolve_nested_variable(var_path, variables)
+            return value  # Keep as-is if not a variable
         
         # Handle dictionaries (both regular and MappingProxyType)
         elif isinstance(value, (dict, MappingProxyType)):
@@ -187,6 +186,24 @@ class UniversalExecutor:
         # Any other type (int, float, bool, None, etc.)
         else:
             return value
+    
+    def _resolve_nested_variable(self, var_path: str, variables: Dict[str, Any]) -> Any:
+        """
+        ENHANCED: Resolve nested variable access like 'variable.field.subfield'.
+        """
+        parts = var_path.split('.')
+        current = variables
+        
+        for i, part in enumerate(parts):
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            else:
+                # Variable or field not found
+                print(f"🔍 Variable resolution: '{part}' not found in {'.'.join(parts[:i]) or 'variables'}")
+                print(f"🔍 Available keys: {list(current.keys()) if isinstance(current, dict) else 'not a dict'}")
+                return value  # Return original if not found
+        
+        return current
     
     def _extract_value(self, obj: Any) -> Any:
         """Return a plain payload regardless of how deeply it's wrapped."""
@@ -285,17 +302,39 @@ class UniversalExecutor:
         
         return sorted_steps
 
-    # ----------------------------------------------------------- FIXED: execute single step
+    # ----------------------------------------------------------- FIXED: execute single step with deduplication
     async def _execute_step(self, step: Any, context: Dict[str, Any]) -> List[Any]:
         """Execute a single step and return results as a list (matching test expectations)."""
         step_id = step.id
         
+        # FIXED: Check if step has already been executed to prevent duplicates
+        if step_id in context.get("executed_steps", set()):
+            print(f"🔍 Step {step_id[:8]} already executed, skipping")
+            return context["results"].get(step_id, [])
+        
+        # Mark step as executed
+        if "executed_steps" not in context:
+            context["executed_steps"] = set()
+        context["executed_steps"].add(step_id)
+        
         # Find tool calls for this step
         results = []
+        
+        # FIXED: Deduplicate tool calls by tracking executed tool call IDs
+        executed_tool_calls = context.get("executed_tool_calls", set())
         
         for edge in self.graph_store.get_edges(src=step_id, kind=EdgeKind.PLAN_LINK):
             tool_node = self.graph_store.get_node(edge.dst)
             if tool_node and tool_node.kind.value == "tool_call":
+                
+                # FIXED: Skip if this tool call was already executed
+                if tool_node.id in executed_tool_calls:
+                    print(f"🔍 Tool call {tool_node.id[:8]} already executed, skipping")
+                    continue
+                
+                executed_tool_calls.add(tool_node.id)
+                context["executed_tool_calls"] = executed_tool_calls
+                
                 # Get tool info
                 tool_name = tool_node.data.get("name")
                 args = tool_node.data.get("args", {})
@@ -303,7 +342,7 @@ class UniversalExecutor:
                 # FIXED: Find result variable using the new method
                 result_variable = self._find_result_variable(step_id, tool_node.id)
                 
-                # Resolve variables in args FIRST
+                # ENHANCED: Resolve variables in args with nested field support
                 resolved_args = self._resolve_vars(args, context["variables"])
                 
                 # Convert to JSON-serializable format - PRESERVE DICT STRUCTURE
@@ -320,8 +359,7 @@ class UniversalExecutor:
                         fn_name = json_safe_args.get("function")
                         fn_args = json_safe_args.get("args", {})
                         
-                        # CRITICAL FIX: Resolve variables in function args again
-                        # The function args might still contain variable references
+                        # ENHANCED: Resolve variables in function args again with nested support
                         fn_args = self._resolve_vars(fn_args, context["variables"])
                         fn_args = self._get_json_serializable_data(fn_args)
                         
@@ -403,6 +441,8 @@ class UniversalExecutor:
         ctx: Dict[str, Any] = {
             "variables": {**plan.variables, **(variables or {})},
             "results": {},
+            "executed_steps": set(),  # FIXED: Track executed steps
+            "executed_tool_calls": set(),  # FIXED: Track executed tool calls
         }
 
         try:
@@ -446,6 +486,10 @@ class UniversalExecutor:
             # Execute steps in order
             for step in sorted_steps:
                 step_results = await self._execute_step(step, ctx)
+            
+            # Clean up execution tracking from context before returning
+            ctx.pop("executed_steps", None)
+            ctx.pop("executed_tool_calls", None)
             
             return {"success": True, **ctx}
         except Exception as exc:

@@ -1,3 +1,4 @@
+# examples/graph_model_example.py
 from uuid import uuid4
 from datetime import datetime, timezone
 from chuk_ai_planner.models import (

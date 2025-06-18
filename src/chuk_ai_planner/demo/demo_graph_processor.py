@@ -9,8 +9,8 @@ from typing import Dict, Any, Iterable
 
 from sample_tools import WeatherTool, CalculatorTool, SearchTool  # noqa: F401
 
-from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from chuk_session_manager.models.session import Session
+from chuk_ai_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_ai_session_manager.models.session import Session
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 from chuk_ai_planner.planner import Plan
 from chuk_ai_planner.models import ToolCall

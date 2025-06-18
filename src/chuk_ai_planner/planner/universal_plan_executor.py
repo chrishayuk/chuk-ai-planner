@@ -14,8 +14,8 @@ from dataclasses import asdict, is_dataclass
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 from types import MappingProxyType
 
-from chuk_session_manager.models.session import Session
-from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_ai_session_manager.models.session import Session
+from chuk_ai_session_manager.session_storage import setup_chuk_sessions_storage
 
 from chuk_ai_planner.models.edges import EdgeKind
 from chuk_ai_planner.processor import GraphAwareToolProcessor
@@ -33,12 +33,6 @@ class UniversalExecutor:
 
     # ------------------------------------------------------------------ init
     def __init__(self, graph_store: GraphStore | None = None):
-        # Ensure there is a session store
-        try:
-            SessionStoreProvider.get_store()
-        except Exception:
-            SessionStoreProvider.set_store(InMemorySessionStore())
-
         # Don't create session immediately - defer to async method
         self.session = None
         self._session_initialized = False
@@ -57,9 +51,11 @@ class UniversalExecutor:
     async def _ensure_session(self):
         """Ensure session is initialized (async)"""
         if not self._session_initialized:
-            self.session = Session()
-            store = SessionStoreProvider.get_store()
-            await store.save(self.session)
+            # Set up session storage using the correct API
+            setup_chuk_sessions_storage(sandbox_id="universal-executor", default_ttl_hours=2)
+            
+            # Create session
+            self.session = await Session.create()
             
             # Now initialize the processor
             self.processor = GraphAwareToolProcessor(

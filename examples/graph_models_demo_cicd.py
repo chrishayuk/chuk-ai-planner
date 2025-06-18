@@ -32,7 +32,16 @@ from chuk_ai_planner.models.edges import (
 )
 
 from chuk_ai_planner.store.memory import InMemoryGraphStore
-from chuk_ai_planner.utils.visualization import print_graph_structure
+
+# Updated import - use the corrected visualization module
+try:
+    from chuk_ai_planner.utils.visualization import print_graph_structure
+except ImportError:
+    print("⚠️ Visualization module not available - continuing without graph structure display")
+    def print_graph_structure(graph):
+        print("📊 Graph structure visualization not available")
+        print(f"   Nodes: {len(graph.nodes)}")
+        print(f"   Edges: {len(graph.edges)}")
 
 def create_testing_session():
     """Create a comprehensive testing execution session."""

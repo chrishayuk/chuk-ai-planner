@@ -20,8 +20,8 @@ load_dotenv()                        # ← OPENAI_API_KEY
 from sample_tools import WeatherTool, SearchTool, VisitURL  # noqa: F401
 
 # ── A2A plumbing ────────────────────────────────────────────────────
-from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from chuk_session_manager.models.session import Session
+from chuk_ai_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_ai_session_manager.models.session import Session
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 from chuk_ai_planner.planner import Plan
 from chuk_ai_planner.models import ToolCall

@@ -20,11 +20,12 @@ from chuk_ai_planner.models import (
     Summary
 )
 from chuk_ai_planner.models.edges import EdgeKind, ParentChildEdge
-from chuk_session_manager.storage import SessionStoreProvider
-from chuk_session_manager.models.session_event import SessionEvent
-from chuk_session_manager.models.event_type import EventType
-from chuk_session_manager.models.event_source import EventSource
-from chuk_session_manager.models.session_run import SessionRun
+from chuk_ai_session_manager.session_storage import setup_chuk_sessions_storage
+from chuk_ai_session_manager.models.session import Session
+from chuk_ai_session_manager.models.session_event import SessionEvent
+from chuk_ai_session_manager.models.event_type import EventType
+from chuk_ai_session_manager.models.event_source import EventSource
+from chuk_ai_session_manager.models.session_run import SessionRun
 from chuk_tool_processor.models.tool_result import ToolResult
 from .store.base import GraphStore
 
@@ -99,16 +100,13 @@ class GraphAwareToolProcessor:
         Process tool calls from an LLM message, with retry logic,
         and record both session events and graph nodes.
         """
-        store = SessionStoreProvider.get_store()
-        session = store.get(self.session_id)
-        if not session:
-            raise RuntimeError(f"Session {self.session_id} not found")
-
+        # Create a session for this operation
+        session = await Session.create()
+        
         # start a new SessionRun
         run = SessionRun()
         run.mark_running()
-        session.runs.append(run)
-        store.save(session)
+        session.add_run(run)
 
         # record the assistant message event
         evt = SessionEvent(
@@ -116,8 +114,7 @@ class GraphAwareToolProcessor:
             type=EventType.MESSAGE,
             source=EventSource.SYSTEM
         )
-        session.events.append(evt)
-        store.save(session)
+        session.add_event(evt)
         parent_id = evt.id
 
         # update the assistant_message node if provided
@@ -134,14 +131,13 @@ class GraphAwareToolProcessor:
                     res = await self._process_single_tool_call(tc, parent_id, assistant_node_id)
                     results.append(res)
                 run.mark_completed()
-                store.save(session)
                 return results
 
             # no tool_calls found => retry or fail
             if attempt >= self.max_llm_retries:
                 run.mark_failed('Max LLM retries exceeded')
-                store.save(session)
                 self._create_child_event(
+                    session,
                     self._error_event_type,
                     {'error': 'Max LLM retries exceeded'},
                     parent_id
@@ -150,6 +146,7 @@ class GraphAwareToolProcessor:
 
             attempt += 1
             self._create_child_event(
+                session,
                 EventType.SUMMARY,
                 {'note': 'Retry due to missing tool calls', 'attempt': attempt},
                 parent_id
@@ -217,13 +214,6 @@ class GraphAwareToolProcessor:
                     if success and cache_key:
                         self._cache[cache_key] = result
                     
-                    # Record in session events
-                    self._create_child_event(
-                        EventType.TOOL_CALL,
-                        {'tool': tool_name, 'args': args, 'result': result, 'error': error},
-                        parent_event_id
-                    )
-                    
                     # Update graph nodes
                     if assistant_node_id:
                         tool_node = self.node_mgr.create_tool_call_node(
@@ -253,13 +243,6 @@ class GraphAwareToolProcessor:
         if success and cache_key:
             self._cache[cache_key] = result
 
-        # Record in session events
-        self._create_child_event(
-            EventType.TOOL_CALL,
-            {'tool': tool_name, 'args': args, 'result': result, 'error': error},
-            parent_event_id
-        )
-
         # Update graph nodes
         if assistant_node_id:
             tool_node = self.node_mgr.create_tool_call_node(
@@ -273,23 +256,21 @@ class GraphAwareToolProcessor:
 
     def _create_child_event(
         self,
+        session: Session,
         event_type: EventType,
         message: Dict[str, Any],
         parent_id: str
     ) -> SessionEvent:
         """
-        Emit a session event as a child of the given parent_id and persist.
+        Emit a session event as a child of the given parent_id.
         """
-        store = SessionStoreProvider.get_store()
-        session = store.get(self.session_id)
         evt = SessionEvent(
             message=message,
             type=event_type,
             source=EventSource.SYSTEM,
             metadata={'parent_event_id': parent_id}
         )
-        session.events.append(evt)
-        store.save(session)
+        session.add_event(evt)
         return evt
     
     async def process_plan(
@@ -313,28 +294,13 @@ class GraphAwareToolProcessor:
             • Return ``False`` to abort remaining steps.
             • Return ``True``/``None`` (or omit the param) to continue.
         """
-        # Get the store
-        store = SessionStoreProvider.get_store()
-        
-        # Check if store is a coroutine and await it if necessary
-        if asyncio.iscoroutine(store):
-            store = await store
-        
-        # Get the session from the store
-        session = store.get(self.session_id)
-        
-        # Check if session is a coroutine and await it if necessary
-        if asyncio.iscoroutine(session):
-            session = await session
-            
-        if not session:
-            raise RuntimeError(f"Session {self.session_id} not found")
+        # Create a session for this operation
+        session = await Session.create()
 
         # Create a new SessionRun
         run = SessionRun()
         run.mark_running()
-        session.runs.append(run)
-        store.save(session)
+        session.add_run(run)
 
         # Create parent event
         parent_evt = SessionEvent(
@@ -343,8 +309,7 @@ class GraphAwareToolProcessor:
             source=EventSource.SYSTEM,
             metadata={'description': 'Plan execution started'},
         )
-        session.events.append(parent_evt)
-        store.save(session)
+        session.add_event(parent_evt)
         parent_id = parent_evt.id
 
         # Get steps
@@ -363,7 +328,7 @@ class GraphAwareToolProcessor:
                     step_id,
                     assistant_node_id,
                     parent_id,
-                    self._create_child_event,
+                    lambda event_type, message, parent_id: self._create_child_event(session, event_type, message, parent_id),
                     self._process_single_tool_call,
                 )
                 all_results.extend(res_list)
@@ -371,12 +336,10 @@ class GraphAwareToolProcessor:
                 # Per-step callback
                 if on_step and on_step(step_id, res_list) is False:
                     run.mark_completed()
-                    store.save(session)
                     return all_results
 
         # Complete the run
         run.mark_completed()
-        store.save(session)
         
         # Create summary event
         summary_evt = SessionEvent(
@@ -389,8 +352,6 @@ class GraphAwareToolProcessor:
             source=EventSource.SYSTEM,
             metadata={'parent_event_id': parent_id},
         )
-        session.events.append(summary_evt)
-        store.save(session)
+        session.add_event(summary_evt)
         
         return all_results
-    

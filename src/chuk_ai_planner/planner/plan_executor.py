@@ -32,7 +32,7 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 from chuk_ai_planner.models import GraphNode, NodeKind
 from chuk_ai_planner.models.edges import EdgeKind
 from chuk_ai_planner.store.base import GraphStore
-from chuk_session_manager.models.event_type import EventType
+from chuk_ai_session_manager.models.event_type import EventType
 
 # Import serialization utilities
 from ..utils.serialization import unfreeze_data

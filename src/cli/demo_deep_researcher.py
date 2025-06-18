@@ -27,8 +27,8 @@ from chuk_ai_planner.processor import GraphAwareToolProcessor
 from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
 
 # Import session management
-from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from chuk_session_manager.models.session import Session
+from chuk_ai_session_manager.storage import InMemorySessionStore, SessionStoreProvider
+from chuk_ai_session_manager.models.session import Session
 
 # Import the actual tools from sample_tools
 from sample_tools import SearchTool, VisitURL

@@ -26,12 +26,11 @@ from chuk_ai_planner.models import ToolCall, NodeKind
 from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 
-# Session management
-from chuk_session_manager.models.session import Session, SessionEvent
-from chuk_session_manager.models.event_type import EventType
-from chuk_session_manager.models.event_source import EventSource
-from chuk_session_manager.storage import SessionStoreProvider
-from chuk_session_manager.storage.providers.memory import InMemorySessionStore
+# Session management - using chuk-ai-session-manager  
+from chuk_ai_session_manager.models.session import Session, SessionEvent
+from chuk_ai_session_manager.models.event_type import EventType
+from chuk_ai_session_manager.models.event_source import EventSource
+from chuk_ai_session_manager.session_storage import get_backend, ChukSessionsStore, setup_chuk_sessions_storage
 
 
 # --------------------------------------------------------------------------- Mock Tools
@@ -113,16 +112,15 @@ class SessionEventManager:
     
     async def initialize_session(self):
         """Initialize session and session store"""
-        # Set up session store
-        store = InMemorySessionStore()
-        SessionStoreProvider.set_store(store)
+        # Set up session store using the correct API
+        setup_chuk_sessions_storage(sandbox_id="plan-executor-demo", default_ttl_hours=2)
         
         # Create session
         self.session = await Session.create()
         
         print(f"📋 Session initialized: {self.session.id}")
     
-    def create_child_event(self, event_type: EventType, message: Dict[str, Any], parent_event_id: str):
+    def create_child_event(self, event_type, message: Dict[str, Any], parent_event_id: str):
         """Create a child event using the session manager API"""
         # Create event using SessionEvent
         event = SessionEvent(
@@ -373,7 +371,7 @@ async def main():
     print(f"\nTotal events: {len(session_manager.events)}")
     for event in session_manager.events:
         timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]  # Current time as placeholder
-        event_type = event.type.value
+        event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
         message_summary = str(event.message)[:100] + "..." if len(str(event.message)) > 100 else str(event.message)
         print(f"{timestamp} [{event_type}] {message_summary}")
     

@@ -37,6 +37,9 @@ from chuk_ai_planner.store.memory import InMemoryGraphStore
 # universal plan
 from .universal_plan import UniversalPlan
 
+# Import serialization utility to handle frozen structures
+from chuk_ai_planner.utils.serialization import unfreeze_data
+
 _logger = logging.getLogger(__name__)
 
 class PlanRegistry:
@@ -216,10 +219,13 @@ class PlanRegistry:
             # Convert plan to dictionary
             plan_dict = plan.to_dict()
             
+            # Use unfreeze_data to handle MappingProxyType and other frozen structures
+            unfrozen_dict = unfreeze_data(plan_dict)
+            
             # Save to file
             file_path = os.path.join(self.storage_dir, f"{plan.id}.json")
             with open(file_path, 'w') as f:
-                json.dump(plan_dict, f, indent=2)
+                json.dump(unfrozen_dict, f, indent=2)
                 
             _logger.debug(f"Saved plan {plan.id} to {file_path}")
         except Exception as e:

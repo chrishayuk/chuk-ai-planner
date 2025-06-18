@@ -28,14 +28,25 @@ def unfreeze_data(obj: Any) -> Any:
         The unfrozen object suitable for JSON serialization
     """
     if isinstance(obj, MappingProxyType):
+        # Convert mappingproxy to dict and recursively unfreeze values
         return {key: unfreeze_data(value) for key, value in obj.items()}
-    elif isinstance(obj, tuple):
-        # Convert tuples back to lists for JSON compatibility
+    elif isinstance(obj, dict):
+        # Recursively unfreeze dict values (this was missing!)
+        return {key: unfreeze_data(value) for key, value in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        # Convert tuples to lists and recursively unfreeze items (this was missing recursive call!)
         return [unfreeze_data(item) for item in obj]
     elif isinstance(obj, frozenset):
-        # Convert frozensets back to lists (sets aren't JSON serializable)
+        # Convert frozensets to lists and recursively unfreeze items
         return [unfreeze_data(item) for item in obj]
+    elif hasattr(obj, '__dict__'):
+        # Handle objects with __dict__ attribute
+        return unfreeze_data(obj.__dict__)
+    elif hasattr(obj, '_asdict'):
+        # Handle namedtuples
+        return unfreeze_data(obj._asdict())
     else:
+        # Return basic types as-is
         return obj
 
 

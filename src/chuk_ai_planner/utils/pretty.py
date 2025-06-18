@@ -9,7 +9,7 @@ from typing import Dict, List, Any, Callable, Awaitable
 from chuk_ai_planner.models import GraphNode, NodeKind
 from chuk_ai_planner.models.edges import EdgeKind
 from chuk_ai_planner.store.base import GraphStore
-from chuk_session_manager.models.event_type import EventType
+from chuk_ai_session_manager.models.event_type import EventType
 
 
 # ─────────────────────────── colour helper ──────────────────────────────

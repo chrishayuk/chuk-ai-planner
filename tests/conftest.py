@@ -150,16 +150,16 @@ tool_proc.execution.strategies.inprocess_strategy.InProcessStrategy = MockInProc
 tool_proc.execution.tool_executor.ToolExecutor = MockToolExecutor
 
 # Add to sys.modules BEFORE any other imports
-sys.modules['chuk_session_manager'] = session_mgr
-sys.modules['chuk_session_manager.models'] = session_mgr.models
-sys.modules['chuk_session_manager.models.event_type'] = session_mgr.models.event_type
-sys.modules['chuk_session_manager.models.event_source'] = session_mgr.models.event_source
-sys.modules['chuk_session_manager.models.session_event'] = session_mgr.models.session_event
-sys.modules['chuk_session_manager.models.session_run'] = session_mgr.models.session_run
-sys.modules['chuk_session_manager.models.session'] = session_mgr.models.session
-sys.modules['chuk_session_manager.storage'] = session_mgr.storage
-sys.modules['chuk_session_manager.storage.providers'] = session_mgr.storage.providers
-sys.modules['chuk_session_manager.storage.providers.memory'] = session_mgr.storage.providers.memory
+sys.modules['chuk_ai_session_manager'] = session_mgr
+sys.modules['chuk_ai_session_manager.models'] = session_mgr.models
+sys.modules['chuk_ai_session_manager.models.event_type'] = session_mgr.models.event_type
+sys.modules['chuk_ai_session_manager.models.event_source'] = session_mgr.models.event_source
+sys.modules['chuk_ai_session_manager.models.session_event'] = session_mgr.models.session_event
+sys.modules['chuk_ai_session_manager.models.session_run'] = session_mgr.models.session_run
+sys.modules['chuk_ai_session_manager.models.session'] = session_mgr.models.session
+sys.modules['chuk_ai_session_manager.storage'] = session_mgr.storage
+sys.modules['chuk_ai_session_manager.storage.providers'] = session_mgr.storage.providers
+sys.modules['chuk_ai_session_manager.storage.providers.memory'] = session_mgr.storage.providers.memory
 
 sys.modules['chuk_tool_processor'] = tool_proc
 sys.modules['chuk_tool_processor.models'] = tool_proc.models

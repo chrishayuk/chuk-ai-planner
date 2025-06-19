@@ -1,18 +1,8 @@
 #!/usr/bin/env python3
-# examples/plan_agent_demo_final.py
+# examples/plan_agent_demo.py
 """
-Final Plan Agent Demo - Completely Fixed
+Final Plan Agent Demo
 ========================================
-
-This version completely fixes the core issue where models were falling back to 
-coffee/weather examples instead of addressing actual requests.
-
-Key fixes:
-1. Completely new system prompt without any examples that could confuse the model
-2. Custom validator that doesn't restrict to coffee/weather tools
-3. More targeted test scenarios
-4. Better error diagnostics
-
 The four key providers showcased:
 - OpenAI GPT-4o Mini (reliable baseline)
 - Anthropic Claude 4 Sonnet (advanced reasoning) 

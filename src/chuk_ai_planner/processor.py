@@ -20,9 +20,8 @@ from chuk_ai_planner.models import (
     Summary
 )
 from chuk_ai_planner.models.edges import EdgeKind, ParentChildEdge
-from chuk_ai_session_manager.session_storage import setup_chuk_sessions_storage
 from chuk_ai_session_manager.models.session import Session
-from chuk_ai_session_manager.models.session_event import SessionEvent
+from chuk_ai_session_manager.models.session import SessionEvent
 from chuk_ai_session_manager.models.event_type import EventType
 from chuk_ai_session_manager.models.event_source import EventSource
 from chuk_ai_session_manager.models.session_run import SessionRun

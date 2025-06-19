@@ -33,8 +33,6 @@ from chuk_ai_planner.store.memory import InMemoryGraphStore
 from chuk_ai_session_manager.models.session import Session, SessionEvent
 from chuk_ai_session_manager.models.event_type import EventType
 from chuk_ai_session_manager.models.event_source import EventSource
-from chuk_ai_session_manager.session_storage import get_backend, ChukSessionsStore, setup_chuk_sessions_storage
-
 # For LLM simulation or live LLM calls
 from dotenv import load_dotenv
 load_dotenv()
@@ -179,9 +177,6 @@ class SessionEventManager:
     
     async def initialize_session(self):
         """Initialize session and session store"""
-        # Set up session store using the correct API
-        setup_chuk_sessions_storage(sandbox_id="plan-executor-llm-demo", default_ttl_hours=2)
-        
         # Create session
         self.session = await Session.create()
         

@@ -15,7 +15,6 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 from types import MappingProxyType
 
 from chuk_ai_session_manager.models.session import Session
-from chuk_ai_session_manager.session_storage import setup_chuk_sessions_storage
 
 from chuk_ai_planner.models.edges import EdgeKind
 from chuk_ai_planner.processor import GraphAwareToolProcessor
@@ -50,12 +49,9 @@ class UniversalExecutor:
     # ----------------------------------------------------------- async setup
     async def _ensure_session(self):
         """Ensure session is initialized (async)"""
-        if not self._session_initialized:
-            # Set up session storage using the correct API
-            setup_chuk_sessions_storage(sandbox_id="universal-executor", default_ttl_hours=2)
-            
+        if not self._session_initialized:   
             # Create session
-            self.session = await Session.create()
+            self.session = Session()
             
             # Now initialize the processor
             self.processor = GraphAwareToolProcessor(

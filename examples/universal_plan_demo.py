@@ -9,13 +9,9 @@ without involving the executor or other components.
 """
 
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.store.memory import InMemoryGraphStore
-from chuk_ai_planner.models import ToolCall
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import EdgeType
 
-from typing import Dict, List, Any, Optional
 import json
-import uuid
 
 def create_research_plan() -> UniversalPlan:
     """Create a comprehensive research plan using UniversalPlan"""
@@ -169,7 +165,7 @@ def describe_plan(plan: UniversalPlan) -> str:
             
             # Find tool calls for this step
             tool_info = ""
-            for edge in plan._graph.get_edges(src=node.id, kind=EdgeKind.PLAN_LINK):
+            for edge in plan._graph.get_edges(src=node.id, kind=EdgeType.PLAN_LINK):
                 tool_node = plan._graph.get_node(edge.dst)
                 if tool_node and tool_node.__class__.__name__ == "ToolCall":
                     tool_name = tool_node.data.get("name", "")
@@ -192,7 +188,7 @@ def describe_plan(plan: UniversalPlan) -> str:
                         tool_info = f"Tool: {tool_name}, Args: {tool_args}"
                     
                     # Look for result variable in custom edges
-                    for result_edge in plan._graph.get_edges(src=node.id, kind=EdgeKind.CUSTOM):
+                    for result_edge in plan._graph.get_edges(src=node.id, kind=EdgeType.CUSTOM):
                         if result_edge.data.get("type") == "result_variable":
                             tool_info += f", Result → ${result_edge.data.get('variable', '')}"
             

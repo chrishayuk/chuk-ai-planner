@@ -19,7 +19,7 @@ import json
 import os
 import pprint
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from types import MappingProxyType
 
 # Import the official UniversalPlan implementation
@@ -27,9 +27,8 @@ from chuk_ai_planner.planner.universal_plan import UniversalPlan
 from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
 
 # Import necessary graph components
-from chuk_ai_planner.models import ToolCall
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.graph import ToolCall
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 
 # For LLM simulation or live LLM calls
 from dotenv import load_dotenv
@@ -46,7 +45,7 @@ def make_json_serializable(obj: Any) -> Any:
     """Convert potentially frozen data structures to JSON-serializable format."""
     try:
         # Try to import _ReadOnlyList if it exists
-        from chuk_ai_planner.models.base import _ReadOnlyList
+        from chuk_ai_planner.graph.types import _ReadOnlyList
     except ImportError:
         # If not available, create a dummy class that will never match
         class _ReadOnlyList:
@@ -366,11 +365,11 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
             # Create and link tool call
             tool_call = ToolCall(data={"name": tool, "args": args})
             plan._graph.add_node(tool_call)
-            plan._graph.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step_id, dst=tool_call.id))
+            plan._graph.add_edge(GraphEdge(kind=EdgeType.PLAN_LINK, src=step_id, dst=tool_call.id))
             
             # Store result variable using a custom edge
             plan._graph.add_edge(GraphEdge(
-                kind=EdgeKind.CUSTOM,
+                kind=EdgeType.CUSTOM,
                 src=step_id,
                 dst=tool_call.id,
                 data={"type": "result_variable", "variable": f"result_{i}"}
@@ -381,7 +380,7 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
             dep_id = step_ids.get(dep_idx)
             if dep_id:
                 plan._graph.add_edge(GraphEdge(
-                    kind=EdgeKind.STEP_ORDER,
+                    kind=EdgeType.STEP_ORDER,
                     src=dep_id,
                     dst=step_id
                 ))
@@ -430,7 +429,7 @@ async def main(live: bool = False) -> None:
     else:
         llm_json = await call_llm_sim(task)
     
-    print(f"\nLLM Response:")
+    print("\nLLM Response:")
     print(json.dumps(llm_json, indent=2))
 
     # Step 2: Convert to UniversalPlan
@@ -461,7 +460,7 @@ async def main(live: bool = False) -> None:
                 }
                 
                 # Find tool calls
-                for edge in plan._graph.get_edges(src=node.id, kind=EdgeKind.PLAN_LINK):
+                for edge in plan._graph.get_edges(src=node.id, kind=EdgeType.PLAN_LINK):
                     tool_node = plan._graph.get_node(edge.dst)
                     if tool_node and tool_node.__class__.__name__ == "ToolCall":
                         tool_call_info = {
@@ -472,7 +471,7 @@ async def main(live: bool = False) -> None:
                 
                 # Find dependencies
                 dependencies = []
-                for edge in plan._graph.get_edges(dst=node.id, kind=EdgeKind.STEP_ORDER):
+                for edge in plan._graph.get_edges(dst=node.id, kind=EdgeType.STEP_ORDER):
                     dep_node = plan._graph.get_node(edge.src)
                     if dep_node:
                         dependencies.append(dep_node.data.get("index"))

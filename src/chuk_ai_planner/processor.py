@@ -6,20 +6,11 @@ Graph-Aware Tool Processor
 import json
 import logging
 import asyncio
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Callable, Optional
 from uuid import uuid4
 
 from chuk_ai_planner.graph.node_manager import GraphNodeManager
 from chuk_ai_planner.planner.plan_executor import PlanExecutor
-from chuk_ai_planner.models import (
-    NodeKind,
-    AssistantMessage,
-    ToolCall,
-    TaskRun,
-    Summary
-)
-from chuk_ai_planner.models.edges import EdgeKind, ParentChildEdge
 from chuk_session_manager.storage import SessionStoreProvider
 from chuk_session_manager.models.session_event import SessionEvent
 from chuk_session_manager.models.event_type import EventType
@@ -120,9 +111,10 @@ class GraphAwareToolProcessor:
         store.save(session)
         parent_id = evt.id
 
-        # update the assistant_message node if provided
-        if assistant_node_id:
-            self.node_mgr.update_assistant_node(assistant_node_id, assistant_msg)
+        # NOTE: update_assistant_node removed - AssistantMessage node type
+        # was removed as part of domain-agnostic refactoring
+        # if assistant_node_id:
+        #     self.node_mgr.update_assistant_node(assistant_node_id, assistant_msg)
 
         # retry loop for missing tool_calls
         attempt = 0
@@ -190,7 +182,7 @@ class GraphAwareToolProcessor:
                     tool_node = self.node_mgr.create_tool_call_node(
                         tool_name, args, cached, assistant_node_id, is_cached=True
                     )
-                    self.node_mgr.create_task_run_node(tool_node.id, True, 'cached')
+                    self.node_mgr.create_task_run_node(tool_node.id, True, error=None, result=cached)
                 return ToolResult(id=call_id, tool=tool_name, args=args, result=cached)
 
         # First, try to use the new tool executor
@@ -229,8 +221,8 @@ class GraphAwareToolProcessor:
                         tool_node = self.node_mgr.create_tool_call_node(
                             tool_name, args, result, assistant_node_id, error=error
                         )
-                        self.node_mgr.create_task_run_node(tool_node.id, success, error)
-                    
+                        self.node_mgr.create_task_run_node(tool_node.id, success, error=error, result=result)
+
                     return ToolResult(
                         id=call_id, tool=tool_name, args=args, result=result, error=error
                     )
@@ -265,7 +257,7 @@ class GraphAwareToolProcessor:
             tool_node = self.node_mgr.create_tool_call_node(
                 tool_name, args, result, assistant_node_id, error=error
             )
-            self.node_mgr.create_task_run_node(tool_node.id, success, error)
+            self.node_mgr.create_task_run_node(tool_node.id, success, error=error, result=result)
 
         return ToolResult(
             id=call_id, tool=tool_name, args=args, result=result, error=error

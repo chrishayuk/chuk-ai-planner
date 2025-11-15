@@ -29,8 +29,8 @@ import json
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 
 # graph imports
-from chuk_ai_planner.models import GraphNode, NodeKind
-from chuk_ai_planner.models.edges import EdgeKind
+from chuk_ai_planner.graph import GraphNode, NodeType
+from chuk_ai_planner.graph import EdgeType
 from chuk_ai_planner.store.base import GraphStore
 from chuk_session_manager.models.event_type import EventType
 
@@ -68,19 +68,19 @@ class PlanExecutor:
 
         while stack:
             parent = stack.pop()
-            for edge in self.graph_store.get_edges(src=parent, kind=EdgeKind.PARENT_CHILD):
+            for edge in self.graph_store.get_edges(src=parent, kind=EdgeType.PARENT_CHILD):
                 node = self.graph_store.get_node(edge.dst)
                 if not node:
                     continue
 
-                if node.kind == NodeKind.PLAN_STEP:
+                if node.kind == NodeType.PLAN_STEP:
                     out.append(node)
 
                 # even a PLAN_STEP can own sub-steps
                 stack.append(node.id)
 
         # stable sort by hierarchical index, e.g. 1 < 1.2 < 1.10 < 2
-        return sorted(out, key=lambda n: _hier_key(str(n.data.get("index", ""))))
+        return sorted(out, key=lambda n: _hier_key(str(n.index)))
 
     # ...................................................................... batching
     def determine_execution_order(self, steps: List[GraphNode]) -> List[List[str]]:
@@ -93,7 +93,7 @@ class PlanExecutor:
         dependents:   Dict[str, Set[str]] = {s.id: set() for s in steps}
 
         for step in steps:
-            for edge in self.graph_store.get_edges(src=step.id, kind=EdgeKind.STEP_ORDER):
+            for edge in self.graph_store.get_edges(src=step.id, kind=EdgeType.STEP_ORDER):
                 # edge.src (=step.id) must run *before* edge.dst
                 dependencies[edge.dst].add(step.id)
                 dependents[step.id].add(edge.dst)
@@ -135,28 +135,28 @@ class PlanExecutor:
         4. Return list of tool results.
         """
         step_node = self.graph_store.get_node(step_id)
-        if not step_node or step_node.kind != NodeKind.PLAN_STEP:
+        if not step_node or step_node.kind != NodeType.PLAN_STEP:
             raise ValueError(f"Invalid plan step {step_id!r}")
 
         start_evt = create_child_event(
             EventType.SUMMARY,
             {
                 "step_id": step_id,
-                "description": step_node.data.get("description", "Unknown step"),
+                "description": step_node.description,
                 "status": "started",
             },
             parent_event_id,
         )
 
         results: List[Any] = []
-        for edge in self.graph_store.get_edges(src=step_id, kind=EdgeKind.PLAN_LINK):
+        for edge in self.graph_store.get_edges(src=step_id, kind=EdgeType.PLAN_LINK):
             tool_node = self.graph_store.get_node(edge.dst)
-            if not tool_node or tool_node.kind != NodeKind.TOOL_CALL:
+            if not tool_node or tool_node.kind != NodeType.TOOL_CALL:
                 continue
 
             # Get tool data and unfreeze for JSON serialization
-            tool_name = tool_node.data.get("name")
-            tool_args = tool_node.data.get("args", {})
+            tool_name = tool_node.name
+            tool_args = tool_node.args
             
             # Unfreeze the args for JSON serialization
             unfrozen_args = unfreeze_data(tool_args)

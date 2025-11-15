@@ -1,122 +1,353 @@
-# tests/graph/test_node_manager.py
-import pytest
-from datetime import datetime, timezone
+"""
+Tests for GraphNodeManager.
 
+Tests for creating and managing nodes in the graph store.
+"""
+
+from chuk_ai_planner.graph import (
+    ToolCall,
+    TaskRun,
+    SummaryNode,
+    EdgeType,
+)
 from chuk_ai_planner.graph.node_manager import GraphNodeManager
 from chuk_ai_planner.store.memory import InMemoryGraphStore
-from chuk_ai_planner.models import AssistantMessage, ToolCall, TaskRun, Summary, NodeKind, GraphNode
-from chuk_ai_planner.models.edges import EdgeKind, GraphEdge, ParentChildEdge
-
-@pytest.fixture
-def store():
-    return InMemoryGraphStore()
-
-@pytest.fixture
-def manager(store):
-    return GraphNodeManager(store)
-
-@pytest.fixture
-def assistant_node(store):
-    # Create and add an AssistantMessage node
-    node = AssistantMessage(data={"content": "orig", "tool_calls": []})
-    store.add_node(node)
-    return node
-
-class DummyMessage:
-    # For update_assistant_node, mimic incoming assistant message dict
-    def __init__(self, content, tool_calls):
-        self.content = content
-        self.tool_calls = tool_calls
-    def get(self, key, default=None):
-        return getattr(self, key, default)
 
 
-def test_update_assistant_node_missing(store, manager):
-    # No such node
-    result = manager.update_assistant_node("no-id", {"content": "new"})
-    assert result is None
+class TestGraphNodeManager:
+    """Test GraphNodeManager initialization."""
+
+    def test_init(self):
+        """Should initialize with a graph store."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        assert manager.graph_store is graph
 
 
-def test_update_assistant_node_wrong_kind(store, manager):
-    # Add a non-assistant node
-    wrong = Summary(data={"content": "sum"})
-    store.add_node(wrong)
-    result = manager.update_assistant_node(wrong.id, {"content": "new"})
-    assert result is None
+class TestCreateToolCallNode:
+    """Test creating tool call nodes."""
+
+    def test_create_tool_call_basic(self):
+        """Should create a tool call node with required fields."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        # Create a parent node
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test Session")
+        graph.add_node(parent)
+
+        # Create tool call
+        tool = manager.create_tool_call_node(
+            tool_name="get_weather",
+            args={"city": "New York"},
+            result=None,  # Ignored
+            assistant_node_id=parent.id
+        )
+
+        # Verify tool node created
+        assert isinstance(tool, ToolCall)
+        assert tool.name == "get_weather"
+        assert tool.args == {"city": "New York"}
+
+        # Verify node added to graph
+        retrieved = graph.get_node(tool.id)
+        assert retrieved == tool
+
+        # Verify edge created
+        edges = graph.get_edges(src=parent.id)
+        assert len(edges) == 1
+        assert edges[0].kind == EdgeType.PARENT_CHILD
+        assert edges[0].dst == tool.id
+
+    def test_create_tool_call_with_ignored_params(self):
+        """Should ignore result, error, and is_cached params."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        # These params are ignored
+        tool = manager.create_tool_call_node(
+            tool_name="my_tool",
+            args={},
+            result="some result",  # Ignored
+            assistant_node_id=parent.id,
+            error="some error",  # Ignored
+            is_cached=True  # Ignored
+        )
+
+        # Tool node should not have result/error fields
+        assert tool.name == "my_tool"
+        assert not hasattr(tool, "result")
+        assert not hasattr(tool, "error")
 
 
-def test_update_assistant_node_success(store, manager, assistant_node):
-    # Update content and tool_calls
-    new_data = {"content": "updated text", "tool_calls": [1, 2, 3]}
-    updated = manager.update_assistant_node(assistant_node.id, new_data)
-    assert isinstance(updated, AssistantMessage)
-    # Verify fields
-    assert updated.id == assistant_node.id
-    assert updated.data["content"] == new_data["content"]
-    assert updated.data["tool_calls"] == new_data["tool_calls"]
-    assert "updated_at" in updated.data
-    # Check store has updated node
-    stored = store.get_node(assistant_node.id)
-    assert stored is updated
+class TestCreateTaskRunNode:
+    """Test creating task run nodes."""
+
+    def test_create_task_run_success(self):
+        """Should create a successful task run."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        # Create a tool call node first
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        tool = manager.create_tool_call_node(
+            tool_name="test_tool",
+            args={},
+            result=None,
+            assistant_node_id=parent.id
+        )
+
+        # Create successful task run
+        task = manager.create_task_run_node(
+            tool_node_id=tool.id,
+            success=True,
+            result={"data": "value"}
+        )
+
+        # Verify task node
+        assert isinstance(task, TaskRun)
+        assert task.tool_call_id == tool.id
+        assert task.status == "success"
+        assert task.result == {"data": "value"}
+        assert task.error is None
+        assert task.started_at is not None
+        assert task.completed_at is not None
+
+        # Verify node added to graph
+        retrieved = graph.get_node(task.id)
+        assert retrieved == task
+
+        # Verify edge created
+        edges = graph.get_edges(src=tool.id)
+        assert len(edges) == 1
+        assert edges[0].kind == EdgeType.PARENT_CHILD
+        assert edges[0].dst == task.id
+
+    def test_create_task_run_failure(self):
+        """Should create a failed task run."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        tool = manager.create_tool_call_node(
+            tool_name="test_tool",
+            args={},
+            result=None,
+            assistant_node_id=parent.id
+        )
+
+        # Create failed task run
+        task = manager.create_task_run_node(
+            tool_node_id=tool.id,
+            success=False,
+            error="Tool execution failed"
+        )
+
+        # Verify task node
+        assert task.status == "failure"
+        assert task.error == "Tool execution failed"
+        assert task.result is None
+
+    def test_create_task_run_with_result_and_error(self):
+        """Should handle both result and error being set."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        tool = manager.create_tool_call_node(
+            tool_name="test_tool",
+            args={},
+            result=None,
+            assistant_node_id=parent.id
+        )
+
+        # Create with both
+        task = manager.create_task_run_node(
+            tool_node_id=tool.id,
+            success=False,  # Failed
+            result={"partial": "data"},
+            error="Partial failure"
+        )
+
+        assert task.status == "failure"
+        assert task.result == {"partial": "data"}
+        assert task.error == "Partial failure"
 
 
-def test_create_tool_call_node(store, manager, assistant_node):
-    tool_name = "weather"
-    args = {"loc": "X"}
-    result = {"value": 10}
-    tool_node = manager.create_tool_call_node(tool_name, args, result, assistant_node.id, error=None, is_cached=True)
-    # Validate node
-    assert isinstance(tool_node, ToolCall)
-    assert tool_node.data["name"] == tool_name
-    assert tool_node.data["args"] == args
-    assert tool_node.data["result"] == result
-    assert tool_node.data["error"] is None
-    assert tool_node.data["cached"] is True
-    assert "timestamp" in tool_node.data
-    # Node stored
-    assert store.get_node(tool_node.id) is tool_node
-    # Edge exists
-    edges = store.get_edges(src=assistant_node.id)
-    assert len(edges) == 1
-    edge = edges[0]
-    assert isinstance(edge, ParentChildEdge)
-    assert edge.dst == tool_node.id
+class TestCreateSummaryNode:
+    """Test creating summary nodes."""
+
+    def test_create_summary_basic(self):
+        """Should create a summary node with required fields."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        # Create summary
+        summary = manager.create_summary_node(
+            content="This is a test summary",
+            parent_node_id=parent.id
+        )
+
+        # Verify summary node
+        assert isinstance(summary, SummaryNode)
+        assert summary.content == "This is a test summary"
+        assert summary.title == "This is a test summary"[:50]
+        assert summary.summary_type == "checkpoint"
+
+        # Verify node added to graph
+        retrieved = graph.get_node(summary.id)
+        assert retrieved == summary
+
+        # Verify edge created
+        edges = graph.get_edges(src=parent.id)
+        assert len(edges) == 1
+        assert edges[0].kind == EdgeType.PARENT_CHILD
+        assert edges[0].dst == summary.id
+
+    def test_create_summary_with_title(self):
+        """Should use provided title."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        summary = manager.create_summary_node(
+            content="Long summary content here",
+            parent_node_id=parent.id,
+            title="Custom Title"
+        )
+
+        assert summary.title == "Custom Title"
+        assert summary.content == "Long summary content here"
+
+    def test_create_summary_types(self):
+        """Should support different summary types."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        # Test different types
+        for summary_type in ["checkpoint", "completion", "error", "milestone"]:
+            summary = manager.create_summary_node(
+                content=f"Test {summary_type}",
+                parent_node_id=parent.id,
+                summary_type=summary_type
+            )
+            assert summary.summary_type == summary_type
+
+    def test_create_summary_long_content_default_title(self):
+        """Should truncate content for default title."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        long_content = "A" * 100  # 100 characters
+        summary = manager.create_summary_node(
+            content=long_content,
+            parent_node_id=parent.id
+        )
+
+        # Title should be first 50 chars
+        assert summary.title == "A" * 50
+        assert summary.content == long_content
 
 
-def test_create_task_run_node(store, manager):
-    # Create tool call node first
-    tool_node = ToolCall(data={})
-    store.add_node(tool_node)
-    # Now create task run
-    task_node = manager.create_task_run_node(tool_node.id, success=False, error="fail")
-    assert isinstance(task_node, TaskRun)
-    assert task_node.data["success"] is False
-    assert task_node.data["error"] == "fail"
-    assert "timestamp" in task_node.data
-    # Node stored
-    assert store.get_node(task_node.id) is task_node
-    # Edge exists
-    edges = store.get_edges(src=tool_node.id)
-    assert len(edges) == 1
-    edge = edges[0]
-    assert isinstance(edge, ParentChildEdge)
-    assert edge.dst == task_node.id
+class TestIntegration:
+    """Test node manager integration scenarios."""
 
+    def test_tool_call_with_task_run(self):
+        """Should create tool call and task run together."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
 
-def test_create_summary_node(store, manager):
-    # Create parent node
-    parent = ToolCall(data={})
-    store.add_node(parent)
-    content = "a summary"
-    summary_node = manager.create_summary_node(content, parent.id)
-    assert isinstance(summary_node, Summary)
-    assert summary_node.data["content"] == content
-    assert "timestamp" in summary_node.data
-    # Node stored
-    assert store.get_node(summary_node.id) is summary_node
-    # Edge exists
-    edges = store.get_edges(src=parent.id)
-    assert len(edges) == 1
-    edge = edges[0]
-    assert isinstance(edge, ParentChildEdge)
-    assert edge.dst == summary_node.id
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        # Create tool call
+        tool = manager.create_tool_call_node(
+            tool_name="get_data",
+            args={"param": "value"},
+            result=None,
+            assistant_node_id=parent.id
+        )
+
+        # Create task run for the tool
+        task = manager.create_task_run_node(
+            tool_node_id=tool.id,
+            success=True,
+            result={"data": "retrieved"}
+        )
+
+        # Verify graph structure
+        parent_edges = graph.get_edges(src=parent.id)
+        assert len(parent_edges) == 1
+        assert parent_edges[0].dst == tool.id
+
+        tool_edges = graph.get_edges(src=tool.id)
+        assert len(tool_edges) == 1
+        assert tool_edges[0].dst == task.id
+
+    def test_multiple_summaries(self):
+        """Should create multiple summaries for same parent."""
+        graph = InMemoryGraphStore()
+        manager = GraphNodeManager(graph)
+
+        from chuk_ai_planner.graph import SessionNode
+        parent = SessionNode(name="Test")
+        graph.add_node(parent)
+
+        # Create multiple summaries
+        summary1 = manager.create_summary_node(
+            content="First checkpoint",
+            parent_node_id=parent.id,
+            summary_type="checkpoint"
+        )
+
+        summary2 = manager.create_summary_node(
+            content="Second checkpoint",
+            parent_node_id=parent.id,
+            summary_type="checkpoint"
+        )
+
+        summary3 = manager.create_summary_node(
+            content="Completion",
+            parent_node_id=parent.id,
+            summary_type="completion"
+        )
+
+        # All should be children of parent
+        edges = graph.get_edges(src=parent.id)
+        assert len(edges) == 3
+
+        summary_ids = {e.dst for e in edges}
+        assert summary1.id in summary_ids
+        assert summary2.id in summary_ids
+        assert summary3.id in summary_ids

@@ -10,7 +10,7 @@ from a URL. Handles DuckDuckGo redirect URLs and provides robust error handling.
 from __future__ import annotations
 import re
 import urllib.parse
-from typing import Dict, Any
+from typing import Dict
 
 import requests
 from chuk_tool_processor.registry.decorators import register_tool

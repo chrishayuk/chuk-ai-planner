@@ -13,7 +13,9 @@ Install deps once:
 """
 
 from __future__ import annotations
-import time, requests, re
+import time
+import requests
+import re
 from typing import Dict, List
 from bs4 import BeautifulSoup
 from chuk_tool_processor.registry.decorators import register_tool

@@ -16,10 +16,10 @@ Public API
 Both helpers are imported by `plan.py`.
 """
 from __future__ import annotations
-from typing import Dict, Iterable
+from typing import Dict
 
-from chuk_ai_planner.models import PlanNode, PlanStep
-from chuk_ai_planner.models.edges import ParentChildEdge, StepEdge
+from chuk_ai_planner.graph import PlanNode, PlanStep
+from chuk_ai_planner.graph import ParentChildEdge, StepEdge
 from chuk_ai_planner.store.base import GraphStore
 
 
@@ -31,9 +31,11 @@ def _dump_steps(
 ) -> None:
     """Write PlanStep nodes + PARENT_CHILD edges."""
     for step in step_map.values():
+        # Use typed fields instead of data dict
         ps = PlanStep(
             id=step.id,
-            data={"description": step.title, "index": step.index},
+            description=step.title,
+            index=step.index
         )
         graph.add_node(ps)
 
@@ -86,9 +88,11 @@ def persist_single_step(
 
     Called by `Plan.add_step()`.
     """
+    # Use typed fields instead of data dict
     new_node = PlanStep(
         id=step_obj.id,
-        data={"description": step_obj.title, "index": step_obj.index},
+        description=step_obj.title,
+        index=step_obj.index
     )
     graph.add_node(new_node)
 

@@ -2,7 +2,6 @@
 Root conftest.py to configure pytest for all tests.
 """
 import sys
-import os
 from pathlib import Path
 from enum import Enum
 

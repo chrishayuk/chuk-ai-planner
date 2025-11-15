@@ -14,7 +14,6 @@ Registry-driven UniversalPlan demo with chuk_tool_processor
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any, Dict
 
 # Universal plan imports
@@ -98,7 +97,7 @@ class AnalyzerTool:
     
     async def execute(self, weather_data: Dict[str, Any], calculation_result: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze weather and calculation data"""
-        print(f"📊 Analyzing weather and calculation data...")
+        print("📊 Analyzing weather and calculation data...")
         
         # Extract values
         temperature = weather_data.get("temperature", 0)
@@ -310,14 +309,14 @@ async def execute_universal_plan(plan: UniversalPlan, tool_registry: UniversalTo
     
     # Execute the plan
     try:
-        print(f"🏃 Starting plan execution...")
+        print("🏃 Starting plan execution...")
         print(f"📋 Initial variables: {list(plan.variables.keys())}")
         print("=" * 50)
         
         result = await executor.execute_plan(plan)
         
         print("=" * 50)
-        print(f"🏁 Plan execution completed!")
+        print("🏁 Plan execution completed!")
         
         if result["success"]:
             print(f"✅ Universal plan executed successfully with {strategy_name} strategy!")
@@ -476,16 +475,16 @@ async def main() -> None:
         result = await execute_universal_plan(plan, tool_registry, "inprocess")
         
         if result:
-            print(clr(f"\n📈 DETAILED EXECUTION SUMMARY", "1;33"))
+            print(clr("\n📈 DETAILED EXECUTION SUMMARY", "1;33"))
             print(f"   - Plan: {plan.title}")
             print(f"   - Steps: {len(plan.to_dict()['steps'])}")
             print(f"   - Input Variables: {len([k for k in result['variables'].keys() if k.startswith(('target_', 'calc_', 'search_'))])}")
             print(f"   - Output Variables: {len([k for k in result['variables'].keys() if not k.startswith(('target_', 'calc_', 'search_'))])}")
-            print(f"   - Strategy: chuk_tool_processor InProcess")
-            print(f"   - Success: ✅")
+            print("   - Strategy: chuk_tool_processor InProcess")
+            print("   - Success: ✅")
             
             # Show variable summary
-            print(f"\n📋 Variable Summary:")
+            print("\n📋 Variable Summary:")
             for var_name, var_value in result['variables'].items():
                 if isinstance(var_value, dict):
                     print(f"   - {var_name}: {type(var_value).__name__} with {len(var_value)} keys")

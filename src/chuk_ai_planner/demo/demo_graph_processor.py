@@ -4,7 +4,8 @@ demo_graph_processor.py – 3-step plan with GraphAwareToolProcessor
 """
 
 from __future__ import annotations
-import asyncio, json
+import asyncio
+import json
 from typing import Dict, Any, Iterable
 
 from sample_tools import WeatherTool, CalculatorTool, SearchTool  # noqa: F401
@@ -13,8 +14,8 @@ from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvi
 from chuk_session_manager.models.session import Session
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 from chuk_ai_planner.planner import Plan
-from chuk_ai_planner.models import ToolCall
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import ToolCall
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 from chuk_ai_planner.processor import GraphAwareToolProcessor
 from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
 from chuk_ai_planner.utils.registry_helpers import execute_tool
@@ -62,7 +63,7 @@ async def main() -> None:
     def link(idx: str, name: str, args: Dict[str, Any]) -> None:
         tc = ToolCall(data={"name": name, "args": args})
         graph.add_node(tc)
-        graph.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK,
+        graph.add_edge(GraphEdge(kind=EdgeType.PLAN_LINK,
                                  src=idx2id[idx], dst=tc.id))
 
     link("1", "weather",    {"location": "New York"})

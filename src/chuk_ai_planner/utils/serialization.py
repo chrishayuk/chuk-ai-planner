@@ -8,7 +8,7 @@ handling the MappingProxyType and other immutable structures.
 
 import json
 from types import MappingProxyType
-from typing import Any, Dict
+from typing import Any
 
 __all__ = ["unfreeze_data", "serialize_node_data", "serialize_tool_args"]
 

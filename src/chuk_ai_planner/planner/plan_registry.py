@@ -29,7 +29,7 @@ Typical usage:
 import os
 import json
 import logging
-from typing import Dict, List, Optional, Union
+from typing import List, Optional
 
 # planner
 from chuk_ai_planner.store.memory import InMemoryGraphStore

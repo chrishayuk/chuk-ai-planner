@@ -7,16 +7,16 @@ Unit-tests for chuk_ai_planner.planner.plan.Plan
 
 import re
 from chuk_ai_planner.planner import Plan
-from chuk_ai_planner.models import NodeKind, PlanStep
+from chuk_ai_planner.graph import NodeType, PlanStep
 
 
 # --------------------------------------------------------------------- helpers
 def _step_nodes(plan: Plan):
     """Return list of (<index>, PlanStep-node) tuples sorted by index."""
     nodes = [
-        (n.data["index"], n)
+        (n.index, n)  # Use typed field instead of .data dict
         for n in plan.graph.nodes.values()
-        if isinstance(n, PlanStep) and n.kind == NodeKind.PLAN_STEP
+        if isinstance(n, PlanStep) and n.kind == NodeType.PLAN_STEP
     ]
     return sorted(nodes, key=lambda t: tuple(int(p) for p in t[0].split(".")))
 
@@ -58,12 +58,12 @@ def test_add_step_runtime_and_persistence():
     # graph now has 4 PlanStep nodes
     steps = _step_nodes(plan)
     assert len(steps) == 4
-    assert any(idx == "1.2" and node.data["description"] == "Step-B"
+    assert any(idx == "1.2" and node.description == "Step-B"
                for idx, node in steps)
 
     # dependency persisted?
     step_b = next(node for i, node in steps if i == "1.2")
-    assert step_b.data.get("index") == "1.2"
+    assert step_b.index == "1.2"
 
 
 def test_after_dependencies_are_stored():
@@ -73,6 +73,6 @@ def test_after_dependencies_are_stored():
               .step("Third", after=["1", "2"]))
     plan.save()
     third = next(node for idx, node in _step_nodes(plan) if idx == "3")
-    # "after" list is kept in node data
-    assert third.data["index"] == "3"
-    assert third.data.get("description") == "Third"
+    # Verify the step has correct index and description (no .data!)
+    assert third.index == "3"
+    assert third.description == "Third"

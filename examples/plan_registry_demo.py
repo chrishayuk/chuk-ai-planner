@@ -17,7 +17,7 @@ This example:
 import os
 import json
 import shutil
-from typing import Dict, List, Any
+from typing import List
 
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
 from chuk_ai_planner.planner.plan_registry import PlanRegistry

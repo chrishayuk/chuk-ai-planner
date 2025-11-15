@@ -1,7 +1,6 @@
 # chuk_ai_planner/agents/graph_plan_agent.py
 from __future__ import annotations
-import asyncio, json, textwrap
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Dict
 
 from chuk_ai_planner.planner import Plan
 from chuk_ai_planner.store.base import GraphStore
@@ -60,8 +59,8 @@ class GraphPlanAgent(PlanAgent):
 
         # 2 — attach *empty* ToolCall placeholders
         #    (real args can be wired later by your processor)
-        from chuk_ai_planner.models import ToolCall
-        from chuk_ai_planner.models.edges import EdgeKind, GraphEdge
+        from chuk_ai_planner.graph import ToolCall
+        from chuk_ai_planner.graph import EdgeType, GraphEdge
 
         idx2id = {n.data["index"]: n.id
                   for n in self._graph.nodes.values()
@@ -77,7 +76,7 @@ class GraphPlanAgent(PlanAgent):
             self._graph.add_node(tc)
             self._graph.add_edge(
                 GraphEdge(
-                    kind=EdgeKind.PLAN_LINK,
+                    kind=EdgeType.PLAN_LINK,
                     src=idx2id[str(idx)],
                     dst=tc.id,
                 )

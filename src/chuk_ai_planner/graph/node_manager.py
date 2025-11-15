@@ -3,21 +3,19 @@
 Graph node management component.
 
 This module handles creating and updating graph nodes, including
-tool calls, tasks, assistant messages, etc.
+tool calls, tasks, summaries, etc.
 """
 
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from chuk_ai_planner.models import (
-    NodeKind,
-    AssistantMessage,
+from chuk_ai_planner.graph import (
     ToolCall,
     TaskRun,
-    Summary
+    SummaryNode
 )
-from chuk_ai_planner.models.edges import ParentChildEdge
+from chuk_ai_planner.graph import ParentChildEdge
 
 from ..store.base import GraphStore
 
@@ -35,68 +33,29 @@ class GraphNodeManager:
     def __init__(self, graph_store: GraphStore):
         """
         Initialize the graph node manager.
-        
+
         Parameters
         ----------
         graph_store : GraphStore
             The graph store to use for storing nodes and edges
         """
         self.graph_store = graph_store
-    
-    def update_assistant_node(
-        self,
-        node_id: str,
-        assistant_msg: Dict[str, Any]
-    ) -> Optional[AssistantMessage]:
-        """
-        Update an assistant message node with new content.
-        
-        Parameters
-        ----------
-        node_id : str
-            ID of the node to update
-        assistant_msg : Dict[str, Any]
-            New content for the node
-            
-        Returns
-        -------
-        Optional[AssistantMessage]
-            The updated node, or None if node not found or not an assistant message
-        """
-        # Get the existing node
-        node = self.graph_store.get_node(node_id)
-        if not node or node.kind != NodeKind.ASSIST_MSG:
-            _log.warning(f"Node {node_id} not found or not an assistant message")
-            return None
-        
-        # Create updated node
-        updated_node = AssistantMessage(
-            id=node_id,
-            data={
-                **node.data,
-                "content": assistant_msg.get("content"),
-                "tool_calls": assistant_msg.get("tool_calls", []),
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }
-        )
-        
-        # Update in store
-        self.graph_store.update_node(updated_node)
-        
-        return updated_node
-    
+
     def create_tool_call_node(
         self,
         tool_name: str,
         args: Dict[str, Any],
-        result: Any,
+        result: Any,  # Ignored - stored in TaskRun instead
         assistant_node_id: str,
-        error: Optional[str] = None,
-        is_cached: bool = False
+        error: Optional[str] = None,  # Ignored - stored in TaskRun instead
+        is_cached: bool = False  # Ignored - can be stored in TaskRun metadata
     ) -> ToolCall:
         """
-        Create a tool call node and connect it to the assistant node.
-        
+        Create a tool call node and connect it to the parent node.
+
+        Note: result, error, and is_cached parameters are ignored.
+        They should be stored in the TaskRun node instead.
+
         Parameters
         ----------
         tool_name : str
@@ -104,50 +63,45 @@ class GraphNodeManager:
         args : Dict[str, Any]
             Arguments passed to the tool
         result : Any
-            Result returned by the tool
+            (Ignored) Result is stored in TaskRun node
         assistant_node_id : str
-            ID of the assistant node that initiated the tool call
+            ID of the parent node (usually assistant or session)
         error : Optional[str]
-            Error message, if any
+            (Ignored) Error is stored in TaskRun node
         is_cached : bool
-            Whether the result was retrieved from cache
-            
+            (Ignored) Cache info can be stored in TaskRun metadata
+
         Returns
         -------
         ToolCall
             The created tool call node
         """
-        # Create tool call node
+        # Create tool call node with typed fields (no data dict!)
         tool_node = ToolCall(
-            data={
-                "name": tool_name,
-                "args": args,
-                "result": result,
-                "error": error,
-                "cached": is_cached,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+            name=tool_name,
+            args=args
         )
         self.graph_store.add_node(tool_node)
-        
-        # Create edge from assistant to tool call
+
+        # Create edge from parent to tool call
         edge = ParentChildEdge(
             src=assistant_node_id,
             dst=tool_node.id
         )
         self.graph_store.add_edge(edge)
-        
+
         return tool_node
     
     def create_task_run_node(
         self,
         tool_node_id: str,
         success: bool,
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        result: Optional[Any] = None
     ) -> TaskRun:
         """
         Create a task run node and connect it to the tool call node.
-        
+
         Parameters
         ----------
         tool_node_id : str
@@ -156,65 +110,80 @@ class GraphNodeManager:
             Whether the task was successful
         error : Optional[str]
             Error message, if any
-            
+        result : Optional[Any]
+            The result data from the tool execution
+
         Returns
         -------
         TaskRun
             The created task run node
         """
-        # Create task run node
+        # Convert boolean success to status enum
+        if success:
+            status = "success"
+        else:
+            status = "failure"
+
+        # Create task run node with typed fields (no data dict!)
+        now = datetime.now(timezone.utc)
         task_node = TaskRun(
-            data={
-                "success": success,
-                "error": error,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+            tool_call_id=tool_node_id,
+            status=status,
+            result=result,
+            error=error,
+            started_at=now,  # We don't have separate start time, use now
+            completed_at=now
         )
         self.graph_store.add_node(task_node)
-        
+
         # Create edge from tool call to task run
         edge = ParentChildEdge(
             src=tool_node_id,
             dst=task_node.id
         )
         self.graph_store.add_edge(edge)
-        
+
         return task_node
     
     def create_summary_node(
         self,
         content: str,
-        parent_node_id: str
-    ) -> Summary:
+        parent_node_id: str,
+        title: Optional[str] = None,
+        summary_type: str = "checkpoint"
+    ) -> SummaryNode:
         """
         Create a summary node and connect it to the parent node.
-        
+
         Parameters
         ----------
         content : str
             Summary content
         parent_node_id : str
             ID of the parent node
-            
+        title : Optional[str]
+            Summary title (defaults to truncated content)
+        summary_type : str
+            Type of summary: checkpoint, completion, error, or milestone
+
         Returns
         -------
-        Summary
+        SummaryNode
             The created summary node
         """
-        # Create summary node
-        summary_node = Summary(
-            data={
-                "content": content,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+        # Create summary node with typed fields (no data dict!)
+        summary_node = SummaryNode(
+            title=title or content[:50],  # Use first 50 chars if no title
+            content=content,
+            summary_type=summary_type
         )
         self.graph_store.add_node(summary_node)
-        
+
         # Create edge from parent to summary
         edge = ParentChildEdge(
             src=parent_node_id,
             dst=summary_node.id
         )
         self.graph_store.add_edge(edge)
-        
+
         return summary_node

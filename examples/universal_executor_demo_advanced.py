@@ -22,7 +22,6 @@ The demo implements a multi-stage data processing pipeline:
 
 import asyncio
 import json
-import os
 import random
 import time
 from typing import Dict, List, Any, Optional
@@ -276,7 +275,7 @@ def analyze_function(**kwargs) -> Dict[str, Any]:
 def generate_report_function(**kwargs) -> Dict[str, Any]:
     """Function that generates a report from analysis results"""
     analysis_results = kwargs.get("analysis_results", [])
-    print(f"\n📝 Generating report from analysis results...")
+    print("\n📝 Generating report from analysis results...")
     print(f"📝 Received analysis_results type: {type(analysis_results)}")
     print(f"📝 Received analysis_results content: {analysis_results}")
     
@@ -513,7 +512,7 @@ async def subplan_execution_tool(args: Dict[str, Any], registry: SimplePlanRegis
     
     # Copy subplan graph into executor's graph store if necessary
     if subplan.graph is not executor.graph_store:
-        print(f"🔄 Copying subplan graph nodes and edges...")
+        print("🔄 Copying subplan graph nodes and edges...")
         for node in subplan.graph.nodes.values():
             if node.id not in executor.graph_store.nodes:
                 executor.graph_store.add_node(node)

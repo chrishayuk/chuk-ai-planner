@@ -5,14 +5,13 @@ Unit tests for UniversalExecutor
 
 import pytest
 import asyncio
-import json
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
 from chuk_ai_planner.store.memory import InMemoryGraphStore
-from chuk_ai_planner.models import GraphNode, NodeKind, ToolCall
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import ToolCall, PlanStep, PlanLinkEdge
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 
 
 @pytest.fixture
@@ -307,13 +306,13 @@ class TestStepExecution:
         executor.register_tool("test_tool", test_tool)
         
         # Create a step with a tool call
-        step = GraphNode(kind=NodeKind.PLAN_STEP, data={"description": "Test step"})
-        tool_call = ToolCall(data={"name": "test_tool", "args": {"input": "test_data"}})
+        step = PlanStep(description="Test step", index="1")
+        tool_call = ToolCall(name="test_tool", args={"input": "test_data"})
         
         graph_store.add_node(step)
         graph_store.add_node(tool_call)
-        graph_store.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step.id, dst=tool_call.id))
-        
+        graph_store.add_edge(PlanLinkEdge(src=step.id, dst=tool_call.id))
+
         # Execute the step
         context = {"variables": {}, "results": {}}
         results = await executor._execute_step(step, context)
@@ -331,19 +330,19 @@ class TestStepExecution:
         executor.register_function("test_function", test_function)
         
         # Create a step with a function call
-        step = GraphNode(kind=NodeKind.PLAN_STEP, data={"description": "Test step"})
-        tool_call = ToolCall(data={
-            "name": "function",
-            "args": {
+        step = PlanStep(description="Test step", index="1")
+        tool_call = ToolCall(
+            name="function",
+            args={
                 "function": "test_function",
                 "args": {"input_val": "test_input"}
             }
-        })
+        )
         
         graph_store.add_node(step)
         graph_store.add_node(tool_call)
-        graph_store.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step.id, dst=tool_call.id))
-        
+        graph_store.add_edge(PlanLinkEdge(src=step.id, dst=tool_call.id))
+
         # Execute the step
         context = {"variables": {}, "results": {}}
         results = await executor._execute_step(step, context)
@@ -361,19 +360,19 @@ class TestStepExecution:
         executor.register_tool("test_tool", test_tool)
         
         # Create a step with variable references (exact matches only)
-        step = GraphNode(kind=NodeKind.PLAN_STEP, data={"description": "Test step"})
-        tool_call = ToolCall(data={
-            "name": "test_tool",
-            "args": {
+        step = PlanStep(description="Test step", index="1")
+        tool_call = ToolCall(
+            name="test_tool",
+            args={
                 "message": "${name}",  # Exact variable reference
                 "count": "${number}",
                 "static": "unchanged"
             }
-        })
+        )
         
         graph_store.add_node(step)
         graph_store.add_node(tool_call)
-        graph_store.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step.id, dst=tool_call.id))
+        graph_store.add_edge(GraphEdge(kind=EdgeType.PLAN_LINK, src=step.id, dst=tool_call.id))
         
         # Execute with variables
         context = {

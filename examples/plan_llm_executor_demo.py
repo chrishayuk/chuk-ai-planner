@@ -20,13 +20,13 @@ import json
 import os
 import pprint
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict
 
 # Import the original Plan implementation
 from chuk_ai_planner.planner import Plan, PlanExecutor
-from chuk_ai_planner.models import ToolCall, NodeKind
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import ToolCall, NodeType
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 
 # Session management
@@ -393,7 +393,7 @@ def convert_to_plan(llm_json: Dict[str, Any]) -> tuple[Plan, str, Dict[int, str]
     # Get all plan steps to create the mapping
     steps = []
     for node in plan.graph.nodes.values():
-        if node.kind == NodeKind.PLAN_STEP:
+        if node.kind == NodeType.PLAN_STEP:
             steps.append(node)
     
     # Sort by index to match our step order
@@ -415,7 +415,7 @@ def convert_to_plan(llm_json: Dict[str, Any]) -> tuple[Plan, str, Dict[int, str]
             if dep_id:
                 # Add step order edge
                 plan.graph.add_edge(GraphEdge(
-                    kind=EdgeKind.STEP_ORDER,
+                    kind=EdgeType.STEP_ORDER,
                     src=dep_id,
                     dst=step_id
                 ))
@@ -444,7 +444,7 @@ def add_tool_calls_to_plan(plan: Plan, llm_json: Dict[str, Any], step_id_map: Di
             
             # Link step to tool call
             plan.graph.add_edge(GraphEdge(
-                kind=EdgeKind.PLAN_LINK,
+                kind=EdgeType.PLAN_LINK,
                 src=step_id,
                 dst=tool_call.id
             ))
@@ -489,7 +489,7 @@ async def main(live: bool = False) -> None:
     else:
         llm_json = await call_llm_sim(task)
     
-    print(f"\nLLM Response:")
+    print("\nLLM Response:")
     print(json.dumps(llm_json, indent=2))
 
     # Step 2: Convert to Plan
@@ -506,7 +506,7 @@ async def main(live: bool = False) -> None:
         print("\nPlan conversion completed!")
         print(f"- Plan ID: {plan_id}")
         print(f"- Steps created: {len(step_id_map)}")
-        print(f"- Tool calls added to steps")
+        print("- Tool calls added to steps")
         
     except Exception as e:
         import traceback
@@ -528,7 +528,7 @@ async def main(live: bool = False) -> None:
     print("Plan Executor initialized with:")
     print(f"- Graph store with {len(plan.graph.nodes)} nodes")
     print(f"- Tool registry with {len(tool_registry.tools)} tools")
-    print(f"- Session management ready")
+    print("- Session management ready")
 
     # Step 4: Analyze plan structure
     print("\n📊 STEP 4: ANALYZING PLAN STRUCTURE...\n")
@@ -629,13 +629,13 @@ async def main(live: bool = False) -> None:
         print(f"{i:2d}. {timestamp} [{event_type:8}] {message_summary}")
     
     # Step 8: Summary
-    print(f"\n🎉 Demo completed successfully!")
-    print(f"   - Generated plan from natural language task")
+    print("\n🎉 Demo completed successfully!")
+    print("   - Generated plan from natural language task")
     print(f"   - Created {len(steps)} plan steps with dependencies")
     print(f"   - Executed {len(batches)} batches with proper ordering")
     print(f"   - Processed {len(all_results)} tool results")
     print(f"   - Generated {len(session_manager.events)} session events")
-    print(f"   - Demonstrated lower-level Plan Executor API")
+    print("   - Demonstrated lower-level Plan Executor API")
 
 
 # -------------------------------------------------------------------- entry point

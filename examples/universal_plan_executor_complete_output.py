@@ -91,7 +91,7 @@ async def analyzer_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     weather_data = args.get("weather_data", {})
     calculation_result = args.get("calculation_result", {})
     
-    print(f"📊 Analyzing weather and calculation data...")
+    print("📊 Analyzing weather and calculation data...")
     
     # Extract values
     temperature = weather_data.get("temperature", 0)
@@ -138,7 +138,7 @@ def create_working_plan() -> UniversalPlan:
     plan.set_variable("num_b", 18.75)
     plan.set_variable("search_query", "renewable energy solutions")
     
-    print(f"📋 Variables set:")
+    print("📋 Variables set:")
     print(f"   - target_city: {plan.variables['target_city']}")
     print(f"   - num_a: {plan.variables['num_a']}")
     print(f"   - num_b: {plan.variables['num_b']}")
@@ -174,14 +174,14 @@ def create_working_plan() -> UniversalPlan:
         depends_on=[step1_id, step2_id]  # Depends on weather and calculation
     )
     
-    print(f"\n📊 Plan structure created:")
+    print("\n📊 Plan structure created:")
     print(f"   - Step 1: Weather ({step1_id[:8]})")
     print(f"   - Step 2: Calculation ({step2_id[:8]})")
     print(f"   - Step 3: Search ({step3_id[:8]})")
     print(f"   - Step 4: Analysis ({step4_id[:8]}) - depends on steps 1 & 2")
     
     # Display plan outline
-    print(f"\n📋 Plan Outline:")
+    print("\n📋 Plan Outline:")
     print(plan.outline())
     
     return plan
@@ -204,18 +204,18 @@ async def execute_with_logging(plan: UniversalPlan):
     print("✅ Tools registered: weather, calculator, search, analyzer")
     
     # Show initial variables
-    print(f"\n📋 Initial Variables:")
+    print("\n📋 Initial Variables:")
     for name, value in plan.variables.items():
         print(f"   - {name}: {value}")
     
     # Execute plan
-    print(f"\n🏃 Executing plan...")
+    print("\n🏃 Executing plan...")
     print("=" * 50)
     
     result = await executor.execute_plan(plan)
     
     print("=" * 50)
-    print(f"🏁 Plan execution completed!")
+    print("🏁 Plan execution completed!")
     
     return result
 
@@ -223,7 +223,7 @@ async def execute_with_logging(plan: UniversalPlan):
 # ───────────────────── Display Complete Results ───────────────────
 def display_results(result: Dict[str, Any], plan: UniversalPlan):
     """Display comprehensive execution results"""
-    print(f"\n🎉 EXECUTION RESULTS")
+    print("\n🎉 EXECUTION RESULTS")
     print("=" * 60)
     
     if result["success"]:
@@ -235,7 +235,7 @@ def display_results(result: Dict[str, Any], plan: UniversalPlan):
         
         # Input variables
         input_vars = ["target_city", "num_a", "num_b", "search_query"]
-        print(f"\n🔸 Input Variables:")
+        print("\n🔸 Input Variables:")
         for var_name in input_vars:
             if var_name in variables:
                 print(f"   - {var_name}: {variables[var_name]}")
@@ -255,12 +255,12 @@ def display_results(result: Dict[str, Any], plan: UniversalPlan):
                 print(f"      {value}")
         
         # Summary statistics
-        print(f"\n📊 Execution Summary:")
+        print("\n📊 Execution Summary:")
         print(f"   - Plan: {plan.title}")
         print(f"   - Total Variables: {len(variables)}")
         print(f"   - Input Variables: {len(input_vars)}")
         print(f"   - Output Variables: {len(output_vars)}")
-        print(f"   - Success: ✅")
+        print("   - Success: ✅")
         
         # Save results
         output_file = "working_demo_results.json"
@@ -297,7 +297,7 @@ async def main():
     # Display results
     display_results(result, plan)
     
-    print(f"\n🎊 Demo Complete!")
+    print("\n🎊 Demo Complete!")
     print("This demo showed:")
     print("  ✅ Proper Universal Plan creation")
     print("  ✅ Tool execution with visible logs")

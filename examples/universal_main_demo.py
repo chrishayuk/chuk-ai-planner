@@ -14,9 +14,8 @@ dependency management, and error handling.
 """
 
 import asyncio
-import json
 import pprint
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
 from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
@@ -29,7 +28,7 @@ from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
 async def sudoku_parse_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     """Parse a Sudoku puzzle string into a grid"""
     puzzle = args.get("puzzle", "")
-    print(f"🧩 Parsing Sudoku puzzle...")
+    print("🧩 Parsing Sudoku puzzle...")
     
     if len(puzzle) != 81:
         return {"valid": False, "error": "Invalid puzzle length", "grid": []}
@@ -51,7 +50,7 @@ def validate_sudoku_function(**kwargs) -> Dict[str, Any]:
     parse_result = kwargs.get("parse_result", {})
     grid = parse_result.get("grid", [])
     
-    print(f"✓ Validating Sudoku puzzle...")
+    print("✓ Validating Sudoku puzzle...")
     
     if not grid:
         return {"valid": False, "error": "No grid to validate"}
@@ -114,7 +113,7 @@ async def sudoku_backtrack_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     """Solve Sudoku using backtracking algorithm"""
     grid = args.get("grid", [])
     
-    print(f"🔄 Applying backtracking algorithm...")
+    print("🔄 Applying backtracking algorithm...")
     
     if not grid:
         return {"solved": False, "error": "No grid provided", "solution": {}}
@@ -150,7 +149,7 @@ def format_sudoku_function(**kwargs) -> Dict[str, Any]:
     """Format Sudoku solution for display"""
     solution = kwargs.get("solution", {})
     
-    print(f"📋 Formatting solution...")
+    print("📋 Formatting solution...")
     
     if not solution:
         return {"error": "No solution to format", "formatted": "No solution available"}
@@ -468,7 +467,7 @@ def generate_report_function(**kwargs) -> Dict[str, Any]:
     analysis_result = kwargs.get("analysis_result", {})
     statistics = analysis_result.get("statistics", {})
     
-    print(f"📝 Generating analysis report")
+    print("📝 Generating analysis report")
     
     if not statistics:
         return {"error": "No statistics to report", "report": {}}
@@ -755,7 +754,7 @@ async def run_flight_booking_demo(executor: UniversalExecutor):
         ]
     }
     
-    print(f"\n📋 Booking Request:")
+    print("\n📋 Booking Request:")
     print(f"   Route: {booking_data['origin']} → {booking_data['destination']}")
     print(f"   Dates: {booking_data['departure_date']} to {booking_data['return_date']}")
     print(f"   Passengers: {booking_data['passengers']}")
@@ -781,7 +780,7 @@ async def run_flight_booking_demo(executor: UniversalExecutor):
             print(f"Status: {booking.get('status', 'Unknown')}")
         
         if pricing_results.get("recommended"):
-            print(f"\nPricing breakdown:")
+            print("\nPricing breakdown:")
             rec = pricing_results["recommended"]
             print(f"  Base: ${rec.get('base_price', 0)}")
             print(f"  Taxes: ${rec.get('taxes', 0)}")
@@ -806,7 +805,7 @@ async def run_data_analysis_demo(executor: UniversalExecutor):
         }
     }
     
-    print(f"\n📋 Analysis Request:")
+    print("\n📋 Analysis Request:")
     print(f"   Data Source: {analysis_params['data_source']}")
     print(f"   Parameters: {analysis_params['load_parameters']}")
     
@@ -831,7 +830,7 @@ async def run_data_analysis_demo(executor: UniversalExecutor):
         
         if "statistics" in analysis_result:
             stats = analysis_result["statistics"]
-            print(f"\n📈 Key Statistics:")
+            print("\n📈 Key Statistics:")
             print(f"   Total Records: {stats.get('total_records', 0)}")
             if "x" in stats:
                 x_stats = stats["x"]

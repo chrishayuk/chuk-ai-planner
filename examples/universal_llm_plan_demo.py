@@ -10,17 +10,18 @@ Demonstrates integrating the UniversalPlan class with the LLM-based plan generat
 """
 
 from __future__ import annotations
-import argparse, asyncio, json, os, re, uuid
-from typing import Dict, Any, List, Optional
+import argparse
+import asyncio
+import json
+import os
+from typing import Dict, Any
 
 # Import the official UniversalPlan implementation
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
 from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
 
 # ── A2A plumbing -----------------------------------------------------
-from chuk_ai_planner.models import ToolCall
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
-from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -172,7 +173,7 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
             dep_id = step_ids.get(dep_idx)
             if dep_id:
                 plan._graph.add_edge(GraphEdge(
-                    kind=EdgeKind.STEP_ORDER,
+                    kind=EdgeType.STEP_ORDER,
                     src=dep_id,
                     dst=step_id
                 ))
@@ -233,7 +234,7 @@ def create_tool_implementations():
         return {
             "query": query,
             "results": [
-                {"title": f"Climate Change Adaptation Strategies", "url": "https://example.com/climate-adaptation"},
+                {"title": "Climate Change Adaptation Strategies", "url": "https://example.com/climate-adaptation"},
                 {"title": f"Best Practices for {query}", "url": "https://example.com/best-practices"},
                 {"title": f"Research on {query}", "url": "https://example.com/research"}
             ],

@@ -8,8 +8,8 @@ without requiring a database.
 
 from typing import Dict, List, Optional
 
-from chuk_ai_planner.models import GraphNode, NodeKind
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import GraphNode, GraphEdge
+from chuk_ai_planner.graph.types import NodeType, EdgeType
 
 from .base import GraphStore
 
@@ -47,7 +47,7 @@ class InMemoryGraphStore(GraphStore):
         self, 
         src: Optional[str] = None, 
         dst: Optional[str] = None,
-        kind: Optional[EdgeKind] = None
+        kind: Optional[EdgeType] = None
     ) -> List[GraphEdge]:
         """Get edges matching the criteria."""
         result = []
@@ -61,7 +61,7 @@ class InMemoryGraphStore(GraphStore):
             result.append(edge)
         return result
     
-    def get_nodes_by_kind(self, kind: NodeKind) -> List[GraphNode]:
+    def get_nodes_by_kind(self, kind: NodeType) -> List[GraphNode]:
         """Get all nodes of a particular kind."""
         return [node for node in self.nodes.values() if node.kind == kind]
     

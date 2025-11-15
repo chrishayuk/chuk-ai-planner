@@ -1,14 +1,13 @@
 # chuk_ai_planner/planner/universal_plan.py
-from typing import Dict, List, Any, Optional, Union, Sequence
+from typing import Dict, List, Any, Optional
 
 # planner
-from chuk_ai_planner.models import ToolCall, PlanStep
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import ToolCall, CustomEdge, PlanLinkEdge
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 from chuk_ai_planner.store.base import GraphStore
 
 # plan
 from .plan import Plan as ChukPlan
-from .plan_executor import PlanExecutor
 from ._step_tree import iter_steps  # Import the iter_steps function
 
 class UniversalPlan(ChukPlan):
@@ -72,7 +71,7 @@ class UniversalPlan(ChukPlan):
         # Get the step node
         step_id = None
         for node in self._graph.nodes.values():
-            if node.__class__.__name__ == "PlanStep" and node.data.get("index") == step_index:
+            if node.__class__.__name__ == "PlanStep" and node.index == step_index:
                 step_id = node.id
                 # We can't modify node.data directly, so we'll need to create a new node
                 # with updated data if we need to change it
@@ -82,22 +81,17 @@ class UniversalPlan(ChukPlan):
             raise ValueError(f"Failed to find step node for index {step_index}")
         
         # Create a tool call node
-        tool_call = ToolCall(data={"name": tool, "args": args or {}})
+        tool_call = ToolCall(name=tool, args=args or {})
         self._graph.add_node(tool_call)
         
         # Link the step to the tool call
-        self._graph.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step_id, dst=tool_call.id))
+        self._graph.add_edge(PlanLinkEdge(src=step_id, dst=tool_call.id))
         
         # Store result variable information in step metadata
         if result_variable:
             # In a real implementation, we would add this to the step's metadata
             # For now, we'll store it in a custom edge
-            self._graph.add_edge(GraphEdge(
-                kind=EdgeKind.CUSTOM, 
-                src=step_id, 
-                dst=tool_call.id,
-                data={"type": "result_variable", "variable": result_variable}
-            ))
+            self._graph.add_edge(CustomEdge(src=step_id, dst=tool_call.id, custom_type="result_variable", metadata={"variable": result_variable}))
         
         return step_id
     
@@ -113,7 +107,7 @@ class UniversalPlan(ChukPlan):
         # Get the step node
         step_id = None
         for node in self._graph.nodes.values():
-            if node.__class__.__name__ == "PlanStep" and node.data.get("index") == step_index:
+            if node.__class__.__name__ == "PlanStep" and node.index == step_index:
                 step_id = node.id
                 break
         
@@ -122,20 +116,15 @@ class UniversalPlan(ChukPlan):
         
         # In a real implementation, we would add a special node for the subplan
         # For simplicity, we'll use a special tool call node with a "subplan" name
-        tool_call = ToolCall(data={"name": "subplan", "args": {"plan_id": plan_id, "args": args or {}}})
+        tool_call = ToolCall(name="subplan", args={"plan_id": plan_id, "args": args or {}})
         self._graph.add_node(tool_call)
         
         # Link the step to the tool call
-        self._graph.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step_id, dst=tool_call.id))
+        self._graph.add_edge(PlanLinkEdge(src=step_id, dst=tool_call.id))
         
         # Store result variable information
         if result_variable:
-            self._graph.add_edge(GraphEdge(
-                kind=EdgeKind.CUSTOM, 
-                src=step_id, 
-                dst=tool_call.id,
-                data={"type": "result_variable", "variable": result_variable}
-            ))
+            self._graph.add_edge(CustomEdge(src=step_id, dst=tool_call.id, custom_type="result_variable", metadata={"variable": result_variable}))
         
         return step_id
     
@@ -151,7 +140,7 @@ class UniversalPlan(ChukPlan):
         # Get the step node
         step_id = None
         for node in self._graph.nodes.values():
-            if node.__class__.__name__ == "PlanStep" and node.data.get("index") == step_index:
+            if node.__class__.__name__ == "PlanStep" and node.index == step_index:
                 step_id = node.id
                 break
         
@@ -159,20 +148,15 @@ class UniversalPlan(ChukPlan):
             raise ValueError(f"Failed to find step node for index {step_index}")
         
         # Create a special tool call for functions
-        tool_call = ToolCall(data={"name": "function", "args": {"function": function, "args": args or {}}})
+        tool_call = ToolCall(name="function", args={"function": function, "args": args or {}})
         self._graph.add_node(tool_call)
         
         # Link the step to the tool call
-        self._graph.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step_id, dst=tool_call.id))
+        self._graph.add_edge(PlanLinkEdge(src=step_id, dst=tool_call.id))
         
         # Store result variable information
         if result_variable:
-            self._graph.add_edge(GraphEdge(
-                kind=EdgeKind.CUSTOM, 
-                src=step_id, 
-                dst=tool_call.id,
-                data={"type": "result_variable", "variable": result_variable}
-            ))
+            self._graph.add_edge(CustomEdge(src=step_id, dst=tool_call.id, custom_type="result_variable", metadata={"variable": result_variable}))
         
         return step_id
     
@@ -193,25 +177,20 @@ class UniversalPlan(ChukPlan):
             step_id = None
             for node in self._graph.nodes.values():
                 if (node.__class__.__name__ == "PlanStep" and 
-                    node.data.get("description") == title and  # Use description instead of title
-                    node.data.get("index").startswith(str(len(current.children)))):
+                    node.description == title and  # Use description instead of title
+                    node.index.startswith(str(len(current.children)))):
                     step_id = node.id
                     break
             
             if step_id:
                 # Create and link the tool call
-                tool_call = ToolCall(data={"name": tool, "args": args or {}})
+                tool_call = ToolCall(name=tool, args=args or {})
                 self._graph.add_node(tool_call)
-                self._graph.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step_id, dst=tool_call.id))
+                self._graph.add_edge(PlanLinkEdge(src=step_id, dst=tool_call.id))
                 
                 # Store result variable information
                 if result_variable:
-                    self._graph.add_edge(GraphEdge(
-                        kind=EdgeKind.CUSTOM,
-                        src=step_id, 
-                        dst=tool_call.id,
-                        data={"type": "result_variable", "variable": result_variable}
-                    ))
+                    self._graph.add_edge(CustomEdge(src=step_id, dst=tool_call.id, custom_type="result_variable", metadata={"variable": result_variable}))
         
         # Go back up
         self.up()
@@ -267,29 +246,29 @@ class UniversalPlan(ChukPlan):
             if node.__class__.__name__ == "PlanStep":
                 # Find tool calls linked to this step
                 tool_calls = []
-                for edge in self._graph.get_edges(src=node.id, kind=EdgeKind.PLAN_LINK):
+                for edge in self._graph.get_edges(src=node.id, kind=EdgeType.PLAN_LINK):
                     tool_node = self._graph.get_node(edge.dst)
                     if tool_node and tool_node.__class__.__name__ == "ToolCall":
                         tool_calls.append({
                             "id": tool_node.id,
-                            "name": tool_node.data.get("name"),
-                            "args": tool_node.data.get("args", {})
+                            "name": tool_node.name,
+                            "args": tool_node.args
                         })
                 
                 # Find result variable
                 result_variable = None
-                for edge in self._graph.get_edges(src=node.id, kind=EdgeKind.CUSTOM):
-                    if edge.data.get("type") == "result_variable":
-                        result_variable = edge.data.get("variable")
+                for edge in self._graph.get_edges(src=node.id, kind=EdgeType.CUSTOM):
+                    if edge.custom_type == "result_variable":
+                        result_variable = edge.metadata.get("variable")
                         break
                 
                 # Get step title - prioritize the 'description' field
-                title = node.data.get("description", "Untitled Step")
+                title = node.description
                 
                 # Add step info
                 result["steps"].append({
                     "id": node.id,
-                    "index": node.data.get("index"),
+                    "index": node.index,
                     "title": title,
                     "tool_calls": tool_calls,
                     "result_variable": result_variable
@@ -325,7 +304,7 @@ class UniversalPlan(ChukPlan):
                 step_node = None
                 for node in plan._graph.nodes.values():
                     if (node.__class__.__name__ == "PlanStep" and 
-                        node.data.get("index") == index):
+                        node.index == index):
                         step_node = node
                         break
                 
@@ -336,7 +315,7 @@ class UniversalPlan(ChukPlan):
                     # Find the created step
                     for node in plan._graph.nodes.values():
                         if (node.__class__.__name__ == "PlanStep" and 
-                            node.data.get("index") == step_index):
+                            node.index == step_index):
                             step_node = node
                             break
                 
@@ -347,15 +326,14 @@ class UniversalPlan(ChukPlan):
                         tool_args = tool_call_data.get("args", {})
                         
                         # Create tool call
-                        tool_call = ToolCall(data={
-                            "name": tool_name,
-                            "args": tool_args
-                        })
+                        tool_call = ToolCall(
+                            name=tool_name,
+                            args=tool_args
+                        )
                         plan._graph.add_node(tool_call)
-                        
+
                         # Link to step
-                        plan._graph.add_edge(GraphEdge(
-                            kind=EdgeKind.PLAN_LINK,
+                        plan._graph.add_edge(PlanLinkEdge(
                             src=step_node.id,
                             dst=tool_call.id
                         ))
@@ -363,7 +341,7 @@ class UniversalPlan(ChukPlan):
                         # Add result variable if present
                         if step_data.get("result_variable"):
                             plan._graph.add_edge(GraphEdge(
-                                kind=EdgeKind.CUSTOM,
+                                kind=EdgeType.CUSTOM,
                                 src=step_node.id,
                                 dst=tool_call.id,
                                 data={

@@ -10,7 +10,6 @@ functionality to support in-depth research.
 
 import re
 import requests
-from typing import Dict, Any, List, Optional, Callable
 from urllib.parse import urlparse
 
 
@@ -179,7 +178,7 @@ async def register_enhanced_tools(processor, tools_dict, search_tool, visit_url_
                     
                     return {
                         "title": f"Information about {url} (via search)",
-                        "content": f"Could not directly access the URL. Here's information found via search:\n\n" + 
+                        "content": "Could not directly access the URL. Here's information found via search:\n\n" + 
                                   "\n\n".join([f"- {r.get('title', '')}: {r.get('snippet', '')}" 
                                                for r in search_results.get("results", [])]),
                         "url": url,

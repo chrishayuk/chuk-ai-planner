@@ -1,14 +1,10 @@
 # tests/utils/test_visualization.py
-import pytest
 from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
 
 from chuk_session_manager.models.session import Session, SessionEvent
 from chuk_session_manager.models.event_type import EventType
 from chuk_session_manager.models.event_source import EventSource
 
-from chuk_ai_planner.models import NodeKind
-from chuk_ai_planner.models.edges import EdgeKind, GraphEdge
-from chuk_ai_planner.models.base import GraphNode
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 
 
@@ -44,13 +40,15 @@ def test_print_session_events_nested_and_types(capsys):
 
 def test_print_graph_structure_basic(capsys):
     # Setup in-memory graph store with a session and a plan
+    from chuk_ai_planner.graph import SessionNode, PlanNode, ParentChildEdge
+
     store = InMemoryGraphStore()
-    session_node = GraphNode(id="s1", kind=NodeKind.SESSION, data={})
-    plan_node = GraphNode(id="p1", kind=NodeKind.PLAN, data={})
+    session_node = SessionNode(id="s1", name="Test Session")
+    plan_node = PlanNode(id="p1", title="Test Plan", description="A test plan")
     store.add_node(session_node)
     store.add_node(plan_node)
     # Connect session -> plan
-    edge = GraphEdge(src="s1", dst="p1", kind=EdgeKind.PARENT_CHILD)
+    edge = ParentChildEdge(src="s1", dst="p1")
     store.add_edge(edge)
 
     print_graph_structure(store)

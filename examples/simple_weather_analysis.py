@@ -17,7 +17,7 @@ tasks as universal_executor_demo.py but with a direct implementation:
 
 import asyncio
 import json
-from typing import Dict, List, Any, Callable
+from typing import Dict, List, Any
 
 # ---- Custom Tools and Functions ----
 
@@ -194,11 +194,11 @@ async def main():
     viz_data = results["visualization"]
     print("\n📊 Visualization Data Summary:")
     print(f"Title: {viz_data['title']}")
-    print(f"City Temperature Ranking:")
+    print("City Temperature Ranking:")
     for city in viz_data["temperature_data"]:
         print(f"- {city['location']}: {city['temperature']}°F")
     
-    print(f"Weather Conditions Distribution:")
+    print("Weather Conditions Distribution:")
     for condition in viz_data["condition_data"]:
         print(f"- {condition['condition']}: {condition['count']} cities")
     

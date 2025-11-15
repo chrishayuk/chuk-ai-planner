@@ -8,7 +8,6 @@ This module provides functionality to create comprehensive summaries
 of research findings.
 """
 
-from typing import Dict, Any, List
 from openai import AsyncOpenAI
 
 

@@ -6,13 +6,12 @@ Extended unit tests for UniversalExecutor covering enhanced features
 import pytest
 import asyncio
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
 from chuk_ai_planner.store.memory import InMemoryGraphStore
-from chuk_ai_planner.models import GraphNode, NodeKind, ToolCall
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import ToolCall, PlanStep, PlanLinkEdge, CustomEdge
 
 
 @pytest.fixture
@@ -196,12 +195,12 @@ class TestDuplicateExecutionPrevention:
         executor.register_tool("counting_tool", counting_tool)
         
         # Create a step
-        step = GraphNode(kind=NodeKind.PLAN_STEP, data={"description": "Counting step"})
-        tool_call = ToolCall(data={"name": "counting_tool", "args": {}})
+        step = PlanStep(description="Counting step", index="1")
+        tool_call = ToolCall(name="counting_tool", args={})
         
         graph_store.add_node(step)
         graph_store.add_node(tool_call)
-        graph_store.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step.id, dst=tool_call.id))
+        graph_store.add_edge(PlanLinkEdge(src=step.id, dst=tool_call.id))
         
         # Execute the same step multiple times
         context = {
@@ -235,17 +234,17 @@ class TestDuplicateExecutionPrevention:
         executor.register_tool("counting_tool", counting_tool)
         
         # Create two steps that use the same tool call (edge case)
-        step1 = GraphNode(kind=NodeKind.PLAN_STEP, data={"description": "Step 1"})
-        step2 = GraphNode(kind=NodeKind.PLAN_STEP, data={"description": "Step 2"})
-        tool_call = ToolCall(data={"name": "counting_tool", "args": {}})
+        step1 = PlanStep(description="Step 1", index="1")
+        step2 = PlanStep(description="Step 2", index="1")
+        tool_call = ToolCall(name="counting_tool", args={})
         
         graph_store.add_node(step1)
         graph_store.add_node(step2)
         graph_store.add_node(tool_call)
         
         # Link both steps to the same tool call (unusual but possible)
-        graph_store.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step1.id, dst=tool_call.id))
-        graph_store.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step2.id, dst=tool_call.id))
+        graph_store.add_edge(PlanLinkEdge(src=step1.id, dst=tool_call.id))
+        graph_store.add_edge(PlanLinkEdge(src=step2.id, dst=tool_call.id))
         
         context = {
             "variables": {},
@@ -274,19 +273,19 @@ class TestResultVariableManagement:
         executor.register_tool("test_tool", test_tool)
         
         # Create step with result variable
-        step = GraphNode(kind=NodeKind.PLAN_STEP, data={"description": "Test step"})
-        tool_call = ToolCall(data={"name": "test_tool", "args": {"input": "data"}})
+        step = PlanStep(description="Test step", index="1")
+        tool_call = ToolCall(name="test_tool", args={"input": "data"})
         
         graph_store.add_node(step)
         graph_store.add_node(tool_call)
-        graph_store.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step.id, dst=tool_call.id))
+        graph_store.add_edge(PlanLinkEdge(src=step.id, dst=tool_call.id))
         
         # Add result variable as custom edge
-        graph_store.add_edge(GraphEdge(
-            kind=EdgeKind.CUSTOM,
+        graph_store.add_edge(CustomEdge(
             src=step.id,
             dst=tool_call.id,
-            data={"type": "result_variable", "variable": "test_result"}
+            custom_type="result_variable",
+            metadata={"variable": "test_result"}
         ))
         
         # Execute step
@@ -299,18 +298,18 @@ class TestResultVariableManagement:
         
     def test_find_result_variable(self, executor, graph_store):
         """Test finding result variables from custom edges."""
-        step = GraphNode(kind=NodeKind.PLAN_STEP, data={"description": "Test step"})
-        tool_call = ToolCall(data={"name": "test_tool", "args": {}})
-        
+        step = PlanStep(description="Test step", index="1")
+        tool_call = ToolCall(name="test_tool", args={})
+
         graph_store.add_node(step)
         graph_store.add_node(tool_call)
-        
+
         # Add result variable as custom edge
-        graph_store.add_edge(GraphEdge(
-            kind=EdgeKind.CUSTOM,
+        graph_store.add_edge(CustomEdge(
             src=step.id,
             dst=tool_call.id,
-            data={"type": "result_variable", "variable": "my_result"}
+            custom_type="result_variable",
+            metadata={"variable": "my_result"}
         ))
         
         # Test finding the result variable

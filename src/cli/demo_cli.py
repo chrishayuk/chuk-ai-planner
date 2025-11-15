@@ -9,9 +9,13 @@ $ uv run cli/demo_cli.py \
 
 from __future__ import annotations
 
-import argparse, asyncio, json, os, uuid
+import argparse
+import asyncio
+import json
+import os
+import uuid
 import warnings
-from typing import Any, Dict, Tuple, List, Set, Optional
+from typing import Any, Dict, Tuple, List, Optional
 
 from dotenv import load_dotenv
 load_dotenv()                        # ← OPENAI_API_KEY
@@ -22,10 +26,9 @@ from sample_tools import WeatherTool, SearchTool, VisitURL  # noqa: F401
 # ── A2A plumbing ────────────────────────────────────────────────────
 from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
 from chuk_session_manager.models.session import Session
-from chuk_ai_planner.store.memory import InMemoryGraphStore
 from chuk_ai_planner.planner import Plan
-from chuk_ai_planner.models import ToolCall
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import ToolCall
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 from chuk_ai_planner.processor import GraphAwareToolProcessor
 from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
 from chuk_ai_planner.utils.registry_helpers import execute_tool
@@ -114,7 +117,6 @@ def register_tools(proc: GraphAwareToolProcessor) -> None:
     """
     Register tools with improved error handling.
     """
-    from chuk_tool_processor.registry import get_default_registry
     
     # Suppress warnings that might interfere with tool execution
     warnings.filterwarnings("ignore", category=UserWarning)
@@ -307,7 +309,7 @@ async def execute_plan(plan_json: Dict, session_id: str,
         tc = ToolCall(data={"name": s["tool"], "args": s["args"]})
         plan.graph.add_node(tc)
         plan.graph.add_edge(
-            GraphEdge(kind=EdgeKind.PLAN_LINK, src=idx2step[str(i)], dst=tc.id)
+            GraphEdge(kind=EdgeType.PLAN_LINK, src=idx2step[str(i)], dst=tc.id)
         )
     
     # Store the graph for later visualization
@@ -490,7 +492,7 @@ async def run(user_prompt: str) -> None:
     print(summary, "\n")
     
     # Print research statistics
-    print(f"\n📊  RESEARCH STATISTICS")
+    print("\n📊  RESEARCH STATISTICS")
     print(f"- Search queries performed: {len(tracker.search_queries)}")
     print(f"- Websites visited: {len(tracker.visited_urls)}")
     print(f"- Total results: {len(tracker.all_results)}")

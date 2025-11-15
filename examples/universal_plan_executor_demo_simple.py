@@ -45,7 +45,7 @@ async def batch_weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
 def analyze_weather_function(**kwargs) -> Dict[str, Any]:
     """Analyze weather data to extract statistics."""
     weather_data = kwargs.get("weather_data", {})
-    print(f"📊 Analyzing weather data...")
+    print("📊 Analyzing weather data...")
     
     # Extract results from the weather data
     results = weather_data.get("results", weather_data)
@@ -90,7 +90,7 @@ def analyze_weather_function(**kwargs) -> Dict[str, Any]:
 def create_report_function(**kwargs) -> Dict[str, Any]:
     """Create a report from analysis data."""
     analysis = kwargs.get("analysis", {})
-    print(f"📝 Generating weather report...")
+    print("📝 Generating weather report...")
     
     return {
         "title": "Global Weather Analysis Report",
@@ -108,7 +108,7 @@ def format_visualization_function(**kwargs) -> Dict[str, Any]:
     """Format data for visualization."""
     weather_data = kwargs.get("weather_data", {})
     analysis = kwargs.get("analysis", {})
-    print(f"🎨 Formatting visualization data...")
+    print("🎨 Formatting visualization data...")
     
     # Extract results safely
     results = weather_data.get("results", weather_data)
@@ -206,10 +206,10 @@ async def main():
     print(f"📋 Plan ID: {plan.id}")
     print(f"📋 Target cities: {plan.variables['target_cities']}")
     
-    print(f"\n📋 Plan structure:")
+    print("\n📋 Plan structure:")
     print(plan.outline())
 
-    print(f"\n▶️ Executing plan...")
+    print("\n▶️ Executing plan...")
     
     # Execute the plan
     result = await executor.execute_plan(plan)
@@ -219,7 +219,7 @@ async def main():
         print(f"\n❌ Plan execution failed: {result.get('error', 'Unknown error')}")
         return
 
-    print(f"\n✅ Plan executed successfully!")
+    print("\n✅ Plan executed successfully!")
 
     # Extract results for display
     weather_data = result["variables"].get("weather_data", {})
@@ -228,23 +228,23 @@ async def main():
     viz = result["variables"].get("viz", {})
 
     # Display results
-    print(f"\n" + "=" * 50)
+    print("\n" + "=" * 50)
     print("EXECUTION RESULTS")
     print("=" * 50)
 
-    print(f"\n🌡️  WEATHER DATA")
+    print("\n🌡️  WEATHER DATA")
     print("-" * 20)
     pprint.pprint(weather_data, width=100, sort_dicts=False)
 
-    print(f"\n📊 ANALYSIS")
+    print("\n📊 ANALYSIS")
     print("-" * 20)
     pprint.pprint(analysis, width=100, sort_dicts=False)
 
-    print(f"\n📝 REPORT")
+    print("\n📝 REPORT")
     print("-" * 20)
     pprint.pprint(report, width=100, sort_dicts=False)
 
-    print(f"\n📈 VISUALIZATION DATA")
+    print("\n📈 VISUALIZATION DATA")
     print("-" * 20)
     pprint.pprint(viz, width=100, sort_dicts=False)
 
@@ -268,7 +268,7 @@ async def main():
     except Exception as e:
         print(f"\n⚠️  Could not save results to file: {e}")
 
-    print(f"\n🎉 Demo completed successfully!")
+    print("\n🎉 Demo completed successfully!")
 
 
 # --------------------------------------------------------------------------- entry point

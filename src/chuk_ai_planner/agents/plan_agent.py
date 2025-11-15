@@ -22,7 +22,8 @@ Typical usage
 """
 
 from __future__ import annotations
-import json, textwrap
+import json
+import textwrap
 from typing import Any, Callable, Dict, List, Tuple
 
 from dotenv import load_dotenv

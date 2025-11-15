@@ -13,7 +13,8 @@ Steps
 """
 
 from __future__ import annotations
-import asyncio, json
+import asyncio
+import json
 from typing import Any, Dict
 
 # ── demo tools self-register on import ───────────────────────────────
@@ -22,8 +23,8 @@ from sample_tools import WeatherTool, CalculatorTool, SearchTool  # noqa: F401
 # ── core graph / executor helpers ────────────────────────────────────
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 from chuk_ai_planner.planner import Plan
-from chuk_ai_planner.models import ToolCall
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import ToolCall
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 from chuk_ai_planner.planner.plan_executor import PlanExecutor
 from chuk_ai_planner.utils.pretty import clr, PlanRunLogger
 from chuk_ai_planner.utils.registry_helpers import execute_tool
@@ -49,7 +50,7 @@ idx2id = {n.data["index"]: n.id
 def link(idx: str, name: str, args: Dict):
     tc = ToolCall(data={"name": name, "args": args})
     g.add_node(tc)
-    g.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK,
+    g.add_edge(GraphEdge(kind=EdgeType.PLAN_LINK,
                          src=idx2id[idx], dst=tc.id))
 
 link("1", "weather",    {"location": "New York"})

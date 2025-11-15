@@ -7,7 +7,6 @@ Universal Plan Executor - ENHANCED VERSION WITH FIXED VARIABLE RESOLUTION
 from __future__ import annotations
 
 import asyncio
-import json
 import re
 import uuid
 from dataclasses import asdict, is_dataclass
@@ -17,10 +16,12 @@ from types import MappingProxyType
 from chuk_session_manager.models.session import Session
 from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
 
-from chuk_ai_planner.models.edges import EdgeKind
+from chuk_ai_planner.graph import EdgeType
+from chuk_ai_planner.graph.types import NodeType
 from chuk_ai_planner.processor import GraphAwareToolProcessor
 from chuk_ai_planner.store.base import GraphStore
 from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.routing import RoutingExecutor
 
 from .plan_executor import PlanExecutor
 from .universal_plan import UniversalPlan
@@ -48,6 +49,7 @@ class UniversalExecutor:
 
         self.processor = None  # Will be initialized when session is ready
         self.plan_executor = PlanExecutor(self.graph_store)
+        self.routing_executor = RoutingExecutor(self.graph_store)
         self.assistant_node_id: str = str(uuid.uuid4())
 
         self.tool_registry: Dict[str, Callable[..., Awaitable[Any]]] = {}
@@ -199,7 +201,6 @@ class UniversalExecutor:
         ENHANCED: Resolve template strings containing multiple variable references.
         Example: "https://${api.endpoint}:${api.port}/users/${user.id}"
         """
-        import re
         
         def replace_var(match):
             var_path = match.group(1)  # Extract content between ${ and }
@@ -279,19 +280,15 @@ class UniversalExecutor:
         Find the result variable for a step by checking custom edges.
         This is the key fix - properly retrieve result_variable from custom edges.
         """
-        # Look for custom edges from step to tool with result_variable data
-        for edge in self.graph_store.get_edges(src=step_id, kind=EdgeKind.CUSTOM):
-            edge_data = edge.data or {}
-            if (edge_data.get("type") == "result_variable" and 
-                (tool_id is None or edge.dst == tool_id)):
-                return edge_data.get("variable")
-        
-        # Fallback: check if tool_id is provided and has result_variable in its data
-        if tool_id:
-            tool_node = self.graph_store.get_node(tool_id)
-            if tool_node:
-                return tool_node.data.get("result_variable")
-        
+        # Look for custom edges from step to tool with result_variable type
+        for edge in self.graph_store.get_edges(src=step_id, kind=EdgeType.CUSTOM):
+            # Check if edge has custom_type field (typed CustomEdge)
+            if hasattr(edge, 'custom_type') and edge.custom_type == "result_variable":
+                if tool_id is None or edge.dst == tool_id:
+                    # Variable name is in metadata
+                    metadata = edge.metadata or {}
+                    return metadata.get("variable")
+
         return None
 
     # ----------------------------------------------------------- topological sort
@@ -336,24 +333,29 @@ class UniversalExecutor:
     async def _execute_step(self, step: Any, context: Dict[str, Any]) -> List[Any]:
         """Execute a single step and return results as a list (matching test expectations)."""
         step_id = step.id
-        
+
         # FIXED: Check if step has already been executed to prevent duplicates
         if step_id in context.get("executed_steps", set()):
             print(f"🔍 Step {step_id[:8]} already executed, skipping")
             return context["results"].get(step_id, [])
-        
+
         # Mark step as executed
         if "executed_steps" not in context:
             context["executed_steps"] = set()
         context["executed_steps"].add(step_id)
-        
+
+        # ROUTING: Check if this is a router step
+        if step.kind == NodeType.ROUTER_STEP:
+            print(f"🔀 Router step detected: {step_id[:8]}")
+            return await self._handle_router_step(step, context)
+
         # Find tool calls for this step
         results = []
         
         # FIXED: Deduplicate tool calls by tracking executed tool call IDs
         executed_tool_calls = context.get("executed_tool_calls", set())
         
-        for edge in self.graph_store.get_edges(src=step_id, kind=EdgeKind.PLAN_LINK):
+        for edge in self.graph_store.get_edges(src=step_id, kind=EdgeType.PLAN_LINK):
             tool_node = self.graph_store.get_node(edge.dst)
             if tool_node and tool_node.kind.value == "tool_call":
                 
@@ -366,8 +368,8 @@ class UniversalExecutor:
                 context["executed_tool_calls"] = executed_tool_calls
                 
                 # Get tool info
-                tool_name = tool_node.data.get("name")
-                args = tool_node.data.get("args", {})
+                tool_name = tool_node.name
+                args = tool_node.args
                 
                 # FIXED: Find result variable using the new method
                 result_variable = self._find_result_variable(step_id, tool_node.id)
@@ -433,8 +435,103 @@ class UniversalExecutor:
         
         # Update context with results for other methods that might use it
         context["results"][step_id] = results
-        
+
         return results
+
+    # ----------------------------------------------------------- ROUTING: handle router steps
+    async def _handle_router_step(self, router_step: Any, context: Dict[str, Any]) -> List[Any]:
+        """
+        Handle a router step by evaluating the routing condition and marking skipped routes.
+
+        Args:
+            router_step: The router step node
+            context: Execution context
+
+        Returns:
+            List with routing decision information
+        """
+        # Evaluate the routing decision
+        decision = await self.routing_executor.evaluate_route(
+            router_step=router_step,
+            context=context
+        )
+
+        print(f"🔀 Route chosen: {decision.route_key} → {decision.target_step_id[:8]}")
+        print(f"🔀 Skipped routes: {', '.join(decision.skipped_routes)}")
+
+        # Store routing decision in context
+        if "routing_decisions" not in context:
+            context["routing_decisions"] = {}
+        context["routing_decisions"][router_step.id] = {
+            "route_key": decision.route_key,
+            "target_step_id": decision.target_step_id,
+            "skipped_routes": decision.skipped_routes,
+            "evaluation_method": decision.evaluation_method,
+            "evaluation_details": decision.evaluation_details,
+        }
+
+        # Mark skipped routes and their descendants
+        if "skipped_steps" not in context:
+            context["skipped_steps"] = set()
+
+        for skipped_route in decision.skipped_routes:
+            # Find the target step for this route
+            route_edges = await self.routing_executor._get_route_edges(router_step.id)
+            for edge in route_edges:
+                if edge.route_key == skipped_route:
+                    # Mark this step and all its descendants as skipped
+                    self._mark_route_skipped(edge.dst, context)
+                    break
+
+        # Return routing decision as result
+        return [{
+            "routing_decision": True,
+            "route_chosen": decision.route_key,
+            "target_step": decision.target_step_id,
+            "router_step": router_step.id,
+        }]
+
+    def _mark_route_skipped(self, step_id: str, context: Dict[str, Any]):
+        """
+        Mark a route and all its descendants as skipped.
+
+        Args:
+            step_id: ID of the step to skip
+            context: Execution context
+        """
+        skipped = context.setdefault("skipped_steps", set())
+
+        # Mark this step as skipped
+        skipped.add(step_id)
+
+        # Recursively skip all descendants
+        descendants = self._get_all_descendants(step_id)
+        skipped.update(descendants)
+
+        print(f"🔀 Marking {len(descendants) + 1} steps as skipped starting from {step_id[:8]}")
+
+    def _get_all_descendants(self, step_id: str) -> Set[str]:
+        """
+        Get all descendant steps from a given step.
+
+        Args:
+            step_id: ID of the step
+
+        Returns:
+            Set of descendant step IDs
+        """
+        descendants = set()
+
+        # Get all outgoing edges (PARENT_CHILD, NEXT, STEP_ORDER)
+        for edge_kind in [EdgeType.PARENT_CHILD, EdgeType.NEXT, EdgeType.STEP_ORDER]:
+            edges = self.graph_store.get_edges(src=step_id, kind=edge_kind)
+            for edge in edges:
+                if edge.dst not in descendants:
+                    descendants.add(edge.dst)
+                    # Recursively get descendants
+                    descendants.update(self._get_all_descendants(edge.dst))
+
+        return descendants
 
     # ----------------------------------------------------------- execution
     async def execute_plan(self, plan: UniversalPlan, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -506,7 +603,7 @@ class UniversalExecutor:
             for step in steps:
                 deps = set()
                 # Get explicit dependencies from STEP_ORDER edges
-                for edge in self.graph_store.get_edges(dst=step.id, kind=EdgeKind.STEP_ORDER):
+                for edge in self.graph_store.get_edges(dst=step.id, kind=EdgeType.STEP_ORDER):
                     deps.add(edge.src)
                 step_dependencies[step.id] = deps
             
@@ -515,6 +612,11 @@ class UniversalExecutor:
             
             # Execute steps in order
             for step in sorted_steps:
+                # ROUTING: Skip steps that were marked as skipped by routing
+                if step.id in ctx.get("skipped_steps", set()):
+                    print(f"⏭️  Skipping step {step.id[:8]} (excluded by routing)")
+                    continue
+
                 step_results = await self._execute_step(step, ctx)
             
             # Clean up execution tracking from context before returning
@@ -528,9 +630,9 @@ class UniversalExecutor:
     # ----------------------------------------------------------- direct tool execution
     async def _execute_tool_directly(self, tool_node: Any, context: Dict[str, Any]):
         """Execute a tool node directly (fallback method)."""
-        tool_name = tool_node.data.get("name")
-        args = tool_node.data.get("args", {})
-        result_variable = tool_node.data.get("result_variable")
+        tool_name = tool_node.name
+        args = tool_node.args
+        result_variable = tool_node.result_variable
         
         # Resolve variables in args
         resolved_args = self._resolve_vars(args, context["variables"])
@@ -595,5 +697,5 @@ class UniversalExecutor:
         node = self.graph_store.get_node(plan_id)
         if node is None:
             raise ValueError(f"Plan {plan_id} not found")
-        plan = UniversalPlan(title=node.data.get("title", "Plan"), id=plan_id, graph=self.graph_store)
+        plan = UniversalPlan(title=node.title, id=plan_id, graph=self.graph_store)
         return await self.execute_plan(plan, variables)

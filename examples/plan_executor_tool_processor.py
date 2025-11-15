@@ -18,8 +18,8 @@ from typing import Any, Dict
 
 # chuk_ai_planner imports
 from chuk_ai_planner.store.memory import InMemoryGraphStore
-from chuk_ai_planner.models import GraphNode, NodeKind
-from chuk_ai_planner.models.edges import EdgeKind, GraphEdge, ParentChildEdge
+from chuk_ai_planner.graph import GraphNode, NodeType
+from chuk_ai_planner.graph import EdgeType, GraphEdge, ParentChildEdge
 from chuk_ai_planner.planner.plan_executor import PlanExecutor
 from chuk_ai_planner.utils.pretty import clr, pretty_print_plan, PlanRunLogger
 
@@ -136,12 +136,12 @@ async def build_plan():
     print(clr("🟢  BUILD GRAPH\n", "1;32"))
 
     g = InMemoryGraphStore()
-    plan = GraphNode(kind=NodeKind.PLAN,
+    plan = GraphNode(kind=NodeType.PLAN,
                      data={"description": "Daily helper"})
     g.add_node(plan)
 
     def add_step(idx: str, desc: str) -> GraphNode:
-        node = GraphNode(kind=NodeKind.PLAN_STEP,
+        node = GraphNode(kind=NodeType.PLAN_STEP,
                          data={"index": idx, "description": desc})
         g.add_node(node)
         g.add_edge(ParentChildEdge(src=plan.id, dst=node.id))
@@ -152,10 +152,10 @@ async def build_plan():
     s3 = add_step("3", "Search climate-adaptation info")
 
     def link(step: GraphNode, name: str, args: dict) -> None:
-        call = GraphNode(kind=NodeKind.TOOL_CALL,
+        call = GraphNode(kind=NodeType.TOOL_CALL,
                          data={"name": name, "args": args})
         g.add_node(call)
-        g.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step.id, dst=call.id))
+        g.add_edge(GraphEdge(kind=EdgeType.PLAN_LINK, src=step.id, dst=call.id))
 
     link(s1, "weather", {"location": "New York"})
     link(s2, "calculator", {"operation": "multiply", "a": 235.5, "b": 18.75})
@@ -189,7 +189,7 @@ async def execute_plan(g, plan, tool_wrapper):
     steps = px.get_plan_steps(plan.id)
     batches = px.determine_execution_order(steps)
 
-    print(f"📊 Plan analysis:")
+    print("📊 Plan analysis:")
     print(f"   - {len(steps)} steps found")
     print(f"   - {len(batches)} execution batches")
     
@@ -292,18 +292,18 @@ async def main() -> None:
         results = await execute_plan(g, plan, tool_wrapper)
         
         # Summary
-        print(clr(f"\n📈 SUMMARY", "1;33"))
-        print(f"   - Plan execution completed")
+        print(clr("\n📈 SUMMARY", "1;33"))
+        print("   - Plan execution completed")
         print(f"   - {len(results)} total results")
-        print(f"   - Tools executed via chuk_tool_processor")
+        print("   - Tools executed via chuk_tool_processor")
         
         if results:
-            print(f"   - All tools executed successfully ✅")
+            print("   - All tools executed successfully ✅")
         else:
-            print(f"   - No results generated ⚠️")
+            print("   - No results generated ⚠️")
         
         # Run strategy comparison if requested
-        print(f"\n🔄 Running strategy comparison...")
+        print("\n🔄 Running strategy comparison...")
         await demo_with_strategy_comparison(g, plan)
         
     finally:

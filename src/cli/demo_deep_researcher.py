@@ -12,19 +12,15 @@ import argparse
 import asyncio
 import json
 import os
-import sys
 import time
-import uuid
-import warnings
-from typing import Dict, Any, List, Optional, Tuple
-from urllib.parse import urlparse
+from typing import Dict, Any
 
 # Import planner components
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.models import ToolCall
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import ToolCall
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 from chuk_ai_planner.processor import GraphAwareToolProcessor
-from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
+from chuk_ai_planner.utils.visualization import print_session_events
 
 # Import session management
 from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
@@ -172,11 +168,11 @@ def convert_to_universal_plan(plan_json: Dict[str, Any]) -> UniversalPlan:
             # Create and link tool call
             tool_call = ToolCall(data={"name": tool, "args": args})
             plan._graph.add_node(tool_call)
-            plan._graph.add_edge(GraphEdge(kind=EdgeKind.PLAN_LINK, src=step_id, dst=tool_call.id))
+            plan._graph.add_edge(GraphEdge(kind=EdgeType.PLAN_LINK, src=step_id, dst=tool_call.id))
             
             # Store result in variable
             plan._graph.add_edge(GraphEdge(
-                kind=EdgeKind.CUSTOM,
+                kind=EdgeType.CUSTOM,
                 src=step_id,
                 dst=tool_call.id,
                 data={"type": "result_variable", "variable": f"result_{i}"}
@@ -187,7 +183,7 @@ def convert_to_universal_plan(plan_json: Dict[str, Any]) -> UniversalPlan:
             dep_id = step_ids.get(dep_idx)
             if dep_id:
                 plan._graph.add_edge(GraphEdge(
-                    kind=EdgeKind.STEP_ORDER,
+                    kind=EdgeType.STEP_ORDER,
                     src=dep_id,
                     dst=step_id
                 ))
@@ -433,7 +429,7 @@ async def run(query, cfg):
         
         # Decide whether to continue
         if round_num < cfg.get("max_rounds", 3):
-            print(f"\n⏳  Planning next research round...\n")
+            print("\n⏳  Planning next research round...\n")
             await asyncio.sleep(1)  # Brief pause
         else:
             print(f"\n✅  Research complete after {round_num} rounds\n")

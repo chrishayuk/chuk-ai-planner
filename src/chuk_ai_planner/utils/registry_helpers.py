@@ -8,7 +8,6 @@ expects the `process_tool_call` signature).
 """
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Any, Dict
 from uuid import uuid4

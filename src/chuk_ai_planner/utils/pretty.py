@@ -3,11 +3,11 @@
 Console helpers: colour, plan outline, and a tidy PlanRunLogger.
 """
 from __future__ import annotations
-import json, os
+import os
 from typing import Dict, List, Any, Callable, Awaitable
 
-from chuk_ai_planner.models import GraphNode, NodeKind
-from chuk_ai_planner.models.edges import EdgeKind
+from chuk_ai_planner.graph import GraphNode, NodeType
+from chuk_ai_planner.graph import EdgeType
 from chuk_ai_planner.store.base import GraphStore
 from chuk_session_manager.models.event_type import EventType
 
@@ -19,7 +19,7 @@ def clr(txt: str, code: str) -> str:
 
 # ───────────────────────── plan outline print ───────────────────────────
 def pretty_print_plan(graph: GraphStore, plan_node: GraphNode) -> None:
-    if plan_node.kind != NodeKind.PLAN:
+    if plan_node.kind != NodeType.PLAN:
         raise ValueError("expected a PlanNode")
 
     def key(n: GraphNode) -> List[int]:
@@ -28,12 +28,12 @@ def pretty_print_plan(graph: GraphStore, plan_node: GraphNode) -> None:
     def dfs(pid: str, depth: int = 0):
         children = [
             graph.get_node(e.dst)
-            for e in graph.get_edges(src=pid, kind=EdgeKind.PARENT_CHILD)
+            for e in graph.get_edges(src=pid, kind=EdgeType.PARENT_CHILD)
             if (n := graph.get_node(e.dst))
         ]
         children.sort(key=key)
         for ch in children:
-            if ch.kind != NodeKind.PLAN_STEP:
+            if ch.kind != NodeType.PLAN_STEP:
                 continue
             idx = ch.data["index"]
             indent = "  " * (depth + 1)
@@ -58,22 +58,22 @@ class PlanRunLogger:
         # walk tree and build id → "1 Grind beans"
         def walk(step_id: str):
             step = graph.get_node(step_id)
-            if not step or step.kind != NodeKind.PLAN_STEP:
+            if not step or step.kind != NodeType.PLAN_STEP:
                 return
             lab = f"{step.data['index']} {step.data['description']}"
             self.label[step.id] = lab
 
             # map all tools of this step
-            for e in graph.get_edges(src=step.id, kind=EdgeKind.PLAN_LINK):
+            for e in graph.get_edges(src=step.id, kind=EdgeType.PLAN_LINK):
                 t = graph.get_node(e.dst)
-                if t and t.kind == NodeKind.TOOL_CALL:
+                if t and t.kind == NodeType.TOOL_CALL:
                     self.label[t.id] = lab
 
             # recurse into sub-steps
-            for e in graph.get_edges(src=step.id, kind=EdgeKind.PARENT_CHILD):
+            for e in graph.get_edges(src=step.id, kind=EdgeType.PARENT_CHILD):
                 walk(e.dst)
 
-        for e in graph.get_edges(src=plan_id, kind=EdgeKind.PARENT_CHILD):
+        for e in graph.get_edges(src=plan_id, kind=EdgeType.PARENT_CHILD):
             walk(e.dst)
 
         # widest label width for alignment

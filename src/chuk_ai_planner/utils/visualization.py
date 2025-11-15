@@ -8,13 +8,13 @@ in a human-readable format for debugging and presentation.
 Updated to handle variations in EventType enums.
 """
 
-from typing import Dict, List, Any
+from typing import List, Any
 
 from chuk_session_manager.models.session import Session
 from chuk_session_manager.models.event_type import EventType
 
-from chuk_ai_planner.models import NodeKind
-from chuk_ai_planner.models.edges import EdgeKind
+from chuk_ai_planner.graph import NodeType
+from chuk_ai_planner.graph import EdgeType
 
 from ..store.base import GraphStore
 
@@ -98,7 +98,7 @@ def print_graph_structure(graph_store: GraphStore) -> None:
     else:
         # Try to get all nodes through get_nodes_by_kind if available
         try:
-            for kind in NodeKind:
+            for kind in NodeType:
                 nodes.extend(graph_store.get_nodes_by_kind(kind))
         except (AttributeError, NotImplementedError):
             print("Warning: Unable to retrieve nodes from graph store")
@@ -155,11 +155,11 @@ def print_graph_structure(graph_store: GraphStore) -> None:
                 print(f"{prefix} {child.kind.value}: {child!r}")
                 
                 # If this is a plan node, show its steps
-                if child.kind == NodeKind.PLAN:
+                if child.kind == NodeType.PLAN:
                     _print_plan_structure(graph_store, child, nodes, edges, "    ")
                 
                 # If this is an assistant message, show its tool calls
-                elif child.kind == NodeKind.ASSIST_MSG:
+                elif child.kind == NodeType.ASSIST_MSG:
                     _print_assistant_structure(graph_store, child, nodes, edges, "    ")
 
 
@@ -190,7 +190,7 @@ def _print_plan_structure(
     step_edges = [
         e for e in edges 
         if e.src == plan_node.id and 
-        any(n.id == e.dst and n.kind == NodeKind.PLAN_STEP for n in nodes)
+        any(n.id == e.dst and n.kind == NodeType.PLAN_STEP for n in nodes)
     ]
     
     for i, step_edge in enumerate(step_edges):
@@ -211,7 +211,7 @@ def _print_plan_structure(
             # Show tool executions for this step
             tool_edges = [
                 e for e in edges 
-                if e.src == step.id and e.kind == EdgeKind.PLAN_LINK
+                if e.src == step.id and e.kind == EdgeType.PLAN_LINK
             ]
             
             next_indent = indent + ("    " if is_last else "│   ")
@@ -258,7 +258,7 @@ def _print_assistant_structure(
     tool_edges = [
         e for e in edges 
         if e.src == assistant_node.id and 
-        any(n.id == e.dst and n.kind == NodeKind.TOOL_CALL for n in nodes)
+        any(n.id == e.dst and n.kind == NodeType.TOOL_CALL for n in nodes)
     ]
     
     for i, tool_edge in enumerate(tool_edges):
@@ -279,7 +279,7 @@ def _print_assistant_structure(
             task_edges = [
                 e for e in edges 
                 if e.src == tool.id and 
-                any(n.id == e.dst and n.kind == NodeKind.TASK_RUN for n in nodes)
+                any(n.id == e.dst and n.kind == NodeType.TASK_RUN for n in nodes)
             ]
             
             next_indent = indent + ("    " if is_last else "│   ")

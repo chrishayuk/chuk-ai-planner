@@ -12,7 +12,6 @@ A simple demonstration of the PlanRegistry with only the essential operations:
 
 import os
 import shutil
-from typing import Dict, List, Any
 
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
 from chuk_ai_planner.planner.plan_registry import PlanRegistry

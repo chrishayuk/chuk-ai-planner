@@ -6,10 +6,10 @@ This defines the interface that all graph store implementations must follow.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 
-from chuk_ai_planner.models import GraphNode, NodeKind
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import GraphNode, GraphEdge
+from chuk_ai_planner.graph.types import NodeType, EdgeType
 
 
 class GraphStore(ABC):
@@ -77,7 +77,7 @@ class GraphStore(ABC):
         self, 
         src: Optional[str] = None, 
         dst: Optional[str] = None,
-        kind: Optional[EdgeKind] = None
+        kind: Optional[EdgeType] = None
     ) -> List[GraphEdge]:
         """
         Get edges matching the given criteria.
@@ -88,7 +88,7 @@ class GraphStore(ABC):
             Filter by source node ID
         dst : Optional[str]
             Filter by destination node ID
-        kind : Optional[EdgeKind]
+        kind : Optional[EdgeType]
             Filter by edge kind
             
         Returns
@@ -98,13 +98,13 @@ class GraphStore(ABC):
         """
         pass
     
-    def get_nodes_by_kind(self, kind: NodeKind) -> List[GraphNode]:
+    def get_nodes_by_kind(self, kind: NodeType) -> List[GraphNode]:
         """
         Get all nodes of a particular kind.
         
         Parameters
         ----------
-        kind : NodeKind
+        kind : NodeType
             The kind of nodes to retrieve
             
         Returns

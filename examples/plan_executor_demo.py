@@ -17,13 +17,13 @@ import asyncio
 import json
 import pprint
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict
 
 # Core imports
 from chuk_ai_planner.planner import Plan, PlanExecutor
-from chuk_ai_planner.models import ToolCall, NodeKind
-from chuk_ai_planner.models.edges import GraphEdge, EdgeKind
+from chuk_ai_planner.graph import ToolCall, NodeType
+from chuk_ai_planner.graph import GraphEdge, EdgeType
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 
 # Session management
@@ -204,7 +204,7 @@ def add_tool_calls_to_plan(plan: Plan) -> Dict[str, str]:
     # Get all plan steps
     steps = []
     for node in plan.graph.nodes.values():
-        if node.kind == NodeKind.PLAN_STEP:
+        if node.kind == NodeType.PLAN_STEP:
             steps.append(node)
     
     # Sort by index to match our plan structure
@@ -258,7 +258,7 @@ def add_tool_calls_to_plan(plan: Plan) -> Dict[str, str]:
         # Add tool call to graph and link to step
         plan.graph.add_node(tool_call)
         plan.graph.add_edge(GraphEdge(
-            kind=EdgeKind.PLAN_LINK,
+            kind=EdgeType.PLAN_LINK,
             src=step_id,
             dst=tool_call.id
         ))

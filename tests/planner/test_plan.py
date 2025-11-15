@@ -25,9 +25,11 @@ def _step_nodes(plan: Plan):
 def test_simple_hierarchy_and_outline():
     plan = (
         Plan("Demo")
-          .step("Gather requirements").up()
-          .step("Draft design").up()
-          .step("Write code", after=["1", "2"])
+        .step("Gather requirements")
+        .up()
+        .step("Draft design")
+        .up()
+        .step("Write code", after=["1", "2"])
     )
     out = plan.outline()
 
@@ -45,21 +47,18 @@ def test_simple_hierarchy_and_outline():
 
 
 def test_add_step_runtime_and_persistence():
-    plan = (Plan("Nested")
-              .step("Prepare").step("Step-A").up().up()
-              .step("Finish"))
+    plan = Plan("Nested").step("Prepare").step("Step-A").up().up().step("Finish")
 
     plan_id = plan.save()
 
     # add new sub-step under "1" (Prepare)
     idx = plan.add_step("Step-B", parent="1", after=["1.1"])
-    assert idx == "1.2"                       # correct hierarchical index
+    assert idx == "1.2"  # correct hierarchical index
 
     # graph now has 4 PlanStep nodes
     steps = _step_nodes(plan)
     assert len(steps) == 4
-    assert any(idx == "1.2" and node.description == "Step-B"
-               for idx, node in steps)
+    assert any(idx == "1.2" and node.description == "Step-B" for idx, node in steps)
 
     # dependency persisted?
     step_b = next(node for i, node in steps if i == "1.2")
@@ -67,10 +66,14 @@ def test_add_step_runtime_and_persistence():
 
 
 def test_after_dependencies_are_stored():
-    plan = (Plan("Deps")
-              .step("First").up()
-              .step("Second").up()
-              .step("Third", after=["1", "2"]))
+    plan = (
+        Plan("Deps")
+        .step("First")
+        .up()
+        .step("Second")
+        .up()
+        .step("Third", after=["1", "2"])
+    )
     plan.save()
     third = next(node for idx, node in _step_nodes(plan) if idx == "3")
     # Verify the step has correct index and description (no .data!)

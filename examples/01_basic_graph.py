@@ -34,7 +34,7 @@ def main():
     plan = PlanNode(
         title="Content Publishing Workflow",
         description="A simple workflow for creating and publishing content",
-        variables={"author": "Alice", "topic": "AI Planning"}
+        variables={"author": "Alice", "topic": "AI Planning"},
     )
     graph.add_node(plan)
     print(f"\n✅ Created Plan: {plan.title}")
@@ -43,23 +43,15 @@ def main():
 
     # 2. Create Plan Steps (typed fields!)
     step1 = PlanStep(
-        description="Research the topic",
-        index="1",
-        status=StepStatus.PENDING
+        description="Research the topic", index="1", status=StepStatus.PENDING
     )
     graph.add_node(step1)
 
-    step2 = PlanStep(
-        description="Write draft",
-        index="2",
-        status=StepStatus.PENDING
-    )
+    step2 = PlanStep(description="Write draft", index="2", status=StepStatus.PENDING)
     graph.add_node(step2)
 
     step3 = PlanStep(
-        description="Review and edit",
-        index="3",
-        status=StepStatus.PENDING
+        description="Review and edit", index="3", status=StepStatus.PENDING
     )
     graph.add_node(step3)
 
@@ -113,7 +105,9 @@ def main():
     print(f"   Description: {step1.description}")  # Not step1.data.get("description")!
     print(f"   Index: {step1.index}")
     print(f"   Status: {step1.status}")  # Enum value
-    print(f"   Status is enum: {isinstance(step1.status, str)}")  # True (use_enum_values)
+    print(
+        f"   Status is enum: {isinstance(step1.status, str)}"
+    )  # True (use_enum_values)
 
     # 7. Demonstrate Immutability
     print("\n" + "=" * 70)

@@ -31,48 +31,50 @@ from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
 async def batch_weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     """
     Get weather data for multiple locations.
-    
+
     Parameters
     ----------
     args : Dict[str, Any]
         Dictionary with a 'locations' key containing a list of location names
-        
+
     Returns
     -------
     Dict[str, Any]
         Weather data for each location
     """
     print(f"📍 Getting weather for {len(args.get('locations', []))} locations")
-    
+
     # Get locations from args
     locations = args.get("locations", [])
-    
+
     # Sample weather data
     weather_data = {
         "New York": {"temperature": 72, "conditions": "Partly cloudy", "humidity": 65},
-        "London":   {"temperature": 62, "conditions": "Rainy",          "humidity": 80},
-        "Tokyo":    {"temperature": 78, "conditions": "Sunny",          "humidity": 70},
-        "Sydney":   {"temperature": 68, "conditions": "Clear",          "humidity": 60},
-        "Cairo":    {"temperature": 90, "conditions": "Hot",            "humidity": 30},
+        "London": {"temperature": 62, "conditions": "Rainy", "humidity": 80},
+        "Tokyo": {"temperature": 78, "conditions": "Sunny", "humidity": 70},
+        "Sydney": {"temperature": 68, "conditions": "Clear", "humidity": 60},
+        "Cairo": {"temperature": 90, "conditions": "Hot", "humidity": 30},
     }
-    
+
     # Get weather for each location
     results = {}
     for loc in locations:
-        results[loc] = weather_data.get(loc, {"temperature": 75, "conditions": "Unknown", "humidity": 50})
-    
+        results[loc] = weather_data.get(
+            loc, {"temperature": 75, "conditions": "Unknown", "humidity": 50}
+        )
+
     return {"results": results}
 
 
 def analyze_weather_function(**kwargs) -> Dict[str, Any]:
     """
     Analyze weather data to extract statistics.
-    
+
     Parameters
     ----------
     **kwargs
         Keyword arguments, expecting 'weather_data' key
-        
+
     Returns
     -------
     Dict[str, Any]
@@ -80,18 +82,19 @@ def analyze_weather_function(**kwargs) -> Dict[str, Any]:
     """
     print("📊 Analyzing weather data")
     print(f"📊 Received kwargs: {list(kwargs.keys())}")
-    
+
     # Extract weather_data from kwargs
     weather_data = kwargs.get("weather_data", {})
-    
+
     # Debug: Print the type and content
     print(f"📊 weather_data type: {type(weather_data)}")
     print(f"📊 weather_data content: {weather_data}")
-    
+
     # Handle case where weather_data might be a string (JSON)
     if isinstance(weather_data, str):
         try:
             import json
+
             weather_data = json.loads(weather_data)
             print("📊 Successfully parsed JSON string")
         except (json.JSONDecodeError, TypeError):
@@ -99,9 +102,9 @@ def analyze_weather_function(**kwargs) -> Dict[str, Any]:
             return {
                 "error": "Invalid weather data format",
                 "received_type": str(type(weather_data)),
-                "received_content": str(weather_data)[:100]
+                "received_content": str(weather_data)[:100],
             }
-    
+
     # Handle case where weather_data might be nested in a results key
     if isinstance(weather_data, dict) and "results" in weather_data:
         results = weather_data["results"]
@@ -112,11 +115,11 @@ def analyze_weather_function(**kwargs) -> Dict[str, Any]:
         return {
             "error": "Unexpected weather data type",
             "received_type": str(type(weather_data)),
-            "received_content": str(weather_data)[:100]
+            "received_content": str(weather_data)[:100],
         }
-    
+
     print(f"📊 Processing {len(results)} locations")
-    
+
     # Calculate statistics
     n = len(results)
     if n == 0:
@@ -125,38 +128,40 @@ def analyze_weather_function(**kwargs) -> Dict[str, Any]:
             "average_humidity": 0,
             "most_common_condition": "Unknown",
             "condition_distribution": {},
-            "locations_analyzed": 0
+            "locations_analyzed": 0,
         }
-    
+
     # Extract data
     temperatures = []
     humidities = []
     conditions = {}
-    
+
     for location, data in results.items():
         print(f"📊 Processing {location}: {data}")
-        
+
         # Extract temperature
         temp = data.get("temperature")
         if temp is not None:
             temperatures.append(temp)
-        
+
         # Extract humidity
         humidity = data.get("humidity")
         if humidity is not None:
             humidities.append(humidity)
-        
+
         # Extract condition
         condition = data.get("conditions", "Unknown")
         conditions[condition] = conditions.get(condition, 0) + 1
-    
+
     # Calculate averages
     avg_temp = sum(temperatures) / len(temperatures) if temperatures else 0
     avg_humidity = sum(humidities) / len(humidities) if humidities else 0
-    
+
     # Find most common condition
-    most_common = max(conditions.items(), key=lambda x: x[1])[0] if conditions else "Unknown"
-    
+    most_common = (
+        max(conditions.items(), key=lambda x: x[1])[0] if conditions else "Unknown"
+    )
+
     analysis_result = {
         "average_temperature": round(avg_temp, 1),
         "average_humidity": round(avg_humidity, 1),
@@ -164,7 +169,7 @@ def analyze_weather_function(**kwargs) -> Dict[str, Any]:
         "condition_distribution": conditions,
         "locations_analyzed": n,
     }
-    
+
     print(f"📊 Analysis complete: {analysis_result}")
     return analysis_result
 
@@ -172,12 +177,12 @@ def analyze_weather_function(**kwargs) -> Dict[str, Any]:
 def create_report_function(**kwargs) -> Dict[str, Any]:
     """
     Create a report from analysis data.
-    
+
     Parameters
     ----------
     **kwargs
         Keyword arguments, expecting 'analysis' key
-        
+
     Returns
     -------
     Dict[str, Any]
@@ -185,21 +190,22 @@ def create_report_function(**kwargs) -> Dict[str, Any]:
     """
     print("📝 Generating weather report")
     print(f"📝 Received kwargs: {list(kwargs.keys())}")
-    
+
     analysis = kwargs.get("analysis", {})
     print(f"📝 Analysis type: {type(analysis)}")
     print(f"📝 Analysis data: {analysis}")
-    
+
     # Handle case where analysis might be a string (JSON)
     if isinstance(analysis, str):
         try:
             import json
+
             analysis = json.loads(analysis)
             print("📝 Successfully parsed analysis JSON string")
         except (json.JSONDecodeError, TypeError):
             print("📝 Failed to parse analysis as JSON")
             analysis = {}
-    
+
     # Create the report
     report = {
         "title": "Global Weather Analysis Report",
@@ -211,7 +217,7 @@ def create_report_function(**kwargs) -> Dict[str, Any]:
         ),
         "details": analysis,
     }
-    
+
     print(f"📝 Report created: {report['summary']}")
     return report
 
@@ -219,12 +225,12 @@ def create_report_function(**kwargs) -> Dict[str, Any]:
 def format_visualization_function(**kwargs) -> Dict[str, Any]:
     """
     Format data for visualization.
-    
+
     Parameters
     ----------
     **kwargs
         Keyword arguments, expecting 'weather_data' and 'analysis' keys
-        
+
     Returns
     -------
     Dict[str, Any]
@@ -232,32 +238,34 @@ def format_visualization_function(**kwargs) -> Dict[str, Any]:
     """
     print("🎨 Formatting visualization data")
     print(f"🎨 Received kwargs: {list(kwargs.keys())}")
-    
+
     weather_data = kwargs.get("weather_data", {})
     analysis = kwargs.get("analysis", {})
-    
+
     print(f"🎨 weather_data type: {type(weather_data)}")
     print(f"🎨 analysis type: {type(analysis)}")
-    
+
     # Handle case where data might be strings (JSON)
     if isinstance(weather_data, str):
         try:
             import json
+
             weather_data = json.loads(weather_data)
             print("🎨 Successfully parsed weather_data JSON string")
         except (json.JSONDecodeError, TypeError):
             print("🎨 Failed to parse weather_data as JSON")
             weather_data = {}
-    
+
     if isinstance(analysis, str):
         try:
             import json
+
             analysis = json.loads(analysis)
             print("🎨 Successfully parsed analysis JSON string")
         except (json.JSONDecodeError, TypeError):
             print("🎨 Failed to parse analysis as JSON")
             analysis = {}
-    
+
     # Extract results safely
     if isinstance(weather_data, dict) and "results" in weather_data:
         results = weather_data["results"]
@@ -265,29 +273,31 @@ def format_visualization_function(**kwargs) -> Dict[str, Any]:
         results = weather_data
     else:
         results = {}
-    
+
     print(f"🎨 Processing {len(results)} locations for visualization")
-    
+
     # Create temperature data for visualization
     temps = []
     for location, data in results.items():
         temps.append({"location": location, "temperature": data.get("temperature", 0)})
-    
+
     # Sort temperatures
     temps.sort(key=lambda x: x["temperature"], reverse=True)
-    
+
     # Create condition data for visualization
     conds = []
     for condition, count in analysis.get("condition_distribution", {}).items():
         conds.append({"condition": condition, "count": count})
-    
+
     viz_result = {
         "title": "Global Weather Visualization",
         "temperature_data": temps,
         "condition_data": conds,
     }
-    
-    print(f"🎨 Visualization data ready: {len(temps)} temperature points, {len(conds)} conditions")
+
+    print(
+        f"🎨 Visualization data ready: {len(temps)} temperature points, {len(conds)} conditions"
+    )
     return viz_result
 
 
@@ -295,12 +305,12 @@ def format_visualization_function(**kwargs) -> Dict[str, Any]:
 def make_plan(store=None) -> UniversalPlan:
     """
     Create a weather analysis plan.
-    
+
     Parameters
     ----------
     store : GraphStore, optional
         Graph store to use for the plan
-        
+
     Returns
     -------
     UniversalPlan
@@ -312,7 +322,7 @@ def make_plan(store=None) -> UniversalPlan:
         tags=["weather", "analysis", "demo"],
         graph=store,
     )
-    
+
     # Define the target cities directly in the plan
     target_cities = ["New York", "London", "Tokyo", "Sydney", "Cairo"]
     plan.set_variable("target_cities", target_cities)
@@ -357,7 +367,7 @@ async def main():
 
     # Create executor
     executor = UniversalExecutor()
-    
+
     # Create plan
     plan = make_plan(executor.graph_store)
 
@@ -368,14 +378,15 @@ async def main():
     executor.register_function("format_visualization", format_visualization_function)
 
     print("\n▶️ Executing Plan...")
-    
+
     # Debug: Check plan variables before execution
     print(f"🐛 Plan variables: {plan.variables}")
-    
+
     try:
         res = await executor.execute_plan(plan)
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         print(f"\n❌ Execution failed with error: {e}")
         return

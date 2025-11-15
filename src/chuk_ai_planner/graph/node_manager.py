@@ -10,11 +10,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from chuk_ai_planner.graph import (
-    ToolCall,
-    TaskRun,
-    SummaryNode
-)
+from chuk_ai_planner.graph import ToolCall, TaskRun, SummaryNode
 from chuk_ai_planner.graph import ParentChildEdge
 
 from ..store.base import GraphStore
@@ -25,11 +21,11 @@ _log = logging.getLogger(__name__)
 class GraphNodeManager:
     """
     Handles managing nodes in the graph.
-    
+
     This class provides methods for creating and updating various types
     of nodes in the graph, as well as creating edges between them.
     """
-    
+
     def __init__(self, graph_store: GraphStore):
         """
         Initialize the graph node manager.
@@ -48,7 +44,7 @@ class GraphNodeManager:
         result: Any,  # Ignored - stored in TaskRun instead
         assistant_node_id: str,
         error: Optional[str] = None,  # Ignored - stored in TaskRun instead
-        is_cached: bool = False  # Ignored - can be stored in TaskRun metadata
+        is_cached: bool = False,  # Ignored - can be stored in TaskRun metadata
     ) -> ToolCall:
         """
         Create a tool call node and connect it to the parent node.
@@ -77,27 +73,21 @@ class GraphNodeManager:
             The created tool call node
         """
         # Create tool call node with typed fields (no data dict!)
-        tool_node = ToolCall(
-            name=tool_name,
-            args=args
-        )
+        tool_node = ToolCall(name=tool_name, args=args)
         self.graph_store.add_node(tool_node)
 
         # Create edge from parent to tool call
-        edge = ParentChildEdge(
-            src=assistant_node_id,
-            dst=tool_node.id
-        )
+        edge = ParentChildEdge(src=assistant_node_id, dst=tool_node.id)
         self.graph_store.add_edge(edge)
 
         return tool_node
-    
+
     def create_task_run_node(
         self,
         tool_node_id: str,
         success: bool,
         error: Optional[str] = None,
-        result: Optional[Any] = None
+        result: Optional[Any] = None,
     ) -> TaskRun:
         """
         Create a task run node and connect it to the tool call node.
@@ -132,25 +122,22 @@ class GraphNodeManager:
             result=result,
             error=error,
             started_at=now,  # We don't have separate start time, use now
-            completed_at=now
+            completed_at=now,
         )
         self.graph_store.add_node(task_node)
 
         # Create edge from tool call to task run
-        edge = ParentChildEdge(
-            src=tool_node_id,
-            dst=task_node.id
-        )
+        edge = ParentChildEdge(src=tool_node_id, dst=task_node.id)
         self.graph_store.add_edge(edge)
 
         return task_node
-    
+
     def create_summary_node(
         self,
         content: str,
         parent_node_id: str,
         title: Optional[str] = None,
-        summary_type: str = "checkpoint"
+        summary_type: str = "checkpoint",
     ) -> SummaryNode:
         """
         Create a summary node and connect it to the parent node.
@@ -175,15 +162,12 @@ class GraphNodeManager:
         summary_node = SummaryNode(
             title=title or content[:50],  # Use first 50 chars if no title
             content=content,
-            summary_type=summary_type
+            summary_type=summary_type,
         )
         self.graph_store.add_node(summary_node)
 
         # Create edge from parent to summary
-        edge = ParentChildEdge(
-            src=parent_node_id,
-            dst=summary_node.id
-        )
+        edge = ParentChildEdge(src=parent_node_id, dst=summary_node.id)
         self.graph_store.add_edge(edge)
 
         return summary_node

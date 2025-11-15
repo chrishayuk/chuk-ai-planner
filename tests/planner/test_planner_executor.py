@@ -5,17 +5,20 @@ from collections import defaultdict
 
 # imports
 from chuk_ai_planner.planner.plan_executor import PlanExecutor
-from chuk_ai_planner.graph import PlanNode, PlanStep, ToolCall, ParentChildEdge, StepEdge
+from chuk_ai_planner.graph import (
+    PlanNode,
+    PlanStep,
+    ToolCall,
+    ParentChildEdge,
+    StepEdge,
+)
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 
 
 # --------------------------------------------------------------------- helpers
 def _mk_step(i: str, desc: str) -> PlanStep:
     """Create a bare PlanStep node with dotted index."""
-    return PlanStep(
-        description=desc,
-        index=i
-    )
+    return PlanStep(description=desc, index=i)
 
 
 @pytest.fixture
@@ -28,7 +31,6 @@ def executor(graph):
     return PlanExecutor(graph)
 
 
-
 # --------------------------------------------------------------------- tests
 def test_get_plan_steps_collects_depth(graph, executor):
     """
@@ -38,9 +40,9 @@ def test_get_plan_steps_collects_depth(graph, executor):
       └─ 2
     """
     plan = PlanNode(title="Test Plan")
-    s1   = _mk_step("1", "A")
-    s11  = _mk_step("1.1", "A.1")
-    s2   = _mk_step("2", "B")
+    s1 = _mk_step("1", "A")
+    s11 = _mk_step("1.1", "A.1")
+    s2 = _mk_step("2", "B")
 
     for n in (plan, s1, s11, s2):
         graph.add_node(n)
@@ -59,9 +61,12 @@ def test_determine_execution_batches(graph, executor):
     1  -> 3
     2  -> 3          →  batches: [1,2] then [3]
     """
-    s1 = _mk_step("1", "A"); graph.add_node(s1)
-    s2 = _mk_step("2", "B"); graph.add_node(s2)
-    s3 = _mk_step("3", "C"); graph.add_node(s3)
+    s1 = _mk_step("1", "A")
+    graph.add_node(s1)
+    s2 = _mk_step("2", "B")
+    graph.add_node(s2)
+    s3 = _mk_step("3", "C")
+    graph.add_node(s3)
 
     # deps
     graph.add_edge(StepEdge(src=s1.id, dst=s3.id))
@@ -77,13 +82,16 @@ async def test_execute_step_runs_tool_calls(graph, executor):
     A single step linked to two ToolCall nodes should invoke process_tool_call
     twice and emit 'started'/'completed' events via create_child_event.
     """
-    step  = _mk_step("1", "Run tools"); graph.add_node(step)
+    step = _mk_step("1", "Run tools")
+    graph.add_node(step)
 
     tool1 = ToolCall(name="dummy", args={"x": 1})
     tool2 = ToolCall(name="dummy", args={"x": 2})
-    graph.add_node(tool1); graph.add_node(tool2)
+    graph.add_node(tool1)
+    graph.add_node(tool2)
 
     from chuk_ai_planner.graph import PlanLinkEdge
+
     graph.add_edge(PlanLinkEdge(src=step.id, dst=tool1.id))
     graph.add_edge(PlanLinkEdge(src=step.id, dst=tool2.id))
 
@@ -96,17 +104,17 @@ async def test_execute_step_runs_tool_calls(graph, executor):
     events = defaultdict(int)
 
     def _create_evt(et, msg, parent):
-        idx = events[et] = events[et] + 1          # increment + keep count
-        return type("Evt", (), {"id": f"evt{idx}"})()   # tiny mock with .id
+        idx = events[et] = events[et] + 1  # increment + keep count
+        return type("Evt", (), {"id": f"evt{idx}"})()  # tiny mock with .id
 
     results = await executor.execute_step(
         step_id=step.id,
         assistant_node_id="assistant",
         parent_event_id="root_evt",
         create_child_event=_create_evt,
-        process_tool_call=_proc_tool_call
+        process_tool_call=_proc_tool_call,
     )
 
     assert [c["x"] for c in calls] == [1, 2]
-    assert events[EventType.SUMMARY] == 2          # started + completed
+    assert events[EventType.SUMMARY] == 2  # started + completed
     assert len(results) == 2

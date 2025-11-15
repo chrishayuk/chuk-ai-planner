@@ -35,7 +35,7 @@ class TestUserMessage:
             content="What's the weather?",
             role="user",
             user_id="user123",
-            conversation_id="conv456"
+            conversation_id="conv456",
         )
 
         assert msg.content == "What's the weather?"
@@ -93,15 +93,10 @@ class TestAssistantMessage:
     def test_create_with_tool_calls(self):
         """Should create AssistantMessage with tool calls."""
         tool_calls = [
-            {
-                "id": "call_123",
-                "name": "get_weather",
-                "arguments": {"city": "New York"}
-            }
+            {"id": "call_123", "name": "get_weather", "arguments": {"city": "New York"}}
         ]
         msg = AssistantMessage(
-            content="Let me check the weather.",
-            tool_calls=tool_calls
+            content="Let me check the weather.", tool_calls=tool_calls
         )
 
         assert msg.tool_calls == tool_calls
@@ -110,11 +105,7 @@ class TestAssistantMessage:
 
     def test_create_with_model_info(self):
         """Should create AssistantMessage with model info."""
-        msg = AssistantMessage(
-            content="Response",
-            model="gpt-4",
-            finish_reason="stop"
-        )
+        msg = AssistantMessage(content="Response", model="gpt-4", finish_reason="stop")
 
         assert msg.model == "gpt-4"
         assert msg.finish_reason == "stop"
@@ -232,8 +223,7 @@ class TestLLMNodeIntegration:
     def test_assistant_message_metadata(self):
         """Should support metadata dict."""
         msg = AssistantMessage(
-            content="Response",
-            metadata={"source": "api", "version": "1.0"}
+            content="Response", metadata={"source": "api", "version": "1.0"}
         )
 
         assert msg.metadata["source"] == "api"
@@ -271,7 +261,6 @@ class TestLLMNodeValidation:
     def test_assistant_message_tool_calls_must_be_list(self):
         """Should validate tool_calls is a list."""
         msg = AssistantMessage(
-            content="Hello",
-            tool_calls=[{"id": "1", "name": "tool"}]
+            content="Hello", tool_calls=[{"id": "1", "name": "tool"}]
         )
         assert isinstance(msg.tool_calls, list)

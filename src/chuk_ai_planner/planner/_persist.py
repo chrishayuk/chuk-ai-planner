@@ -15,8 +15,12 @@ Public API
 
 Both helpers are imported by `plan.py`.
 """
+
 from __future__ import annotations
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
+
+if TYPE_CHECKING:
+    pass
 
 from chuk_ai_planner.graph import PlanNode, PlanStep
 from chuk_ai_planner.graph import ParentChildEdge, StepEdge
@@ -32,11 +36,7 @@ def _dump_steps(
     """Write PlanStep nodes + PARENT_CHILD edges."""
     for step in step_map.values():
         # Use typed fields instead of data dict
-        ps = PlanStep(
-            id=step.id,
-            description=step.title,
-            index=step.index
-        )
+        ps = PlanStep(id=step.id, description=step.title, index=step.index)
         graph.add_node(ps)
 
         # link plan → step
@@ -55,7 +55,7 @@ def _dump_dependencies(
     """Write STEP_ORDER(src→dst) edges based on `after` lists."""
     for st in step_map.values():
         for dep_idx in st.after:
-            src = step_map.get(dep_idx)        # the prerequisite step
+            src = step_map.get(dep_idx)  # the prerequisite step
             if src:
                 graph.add_edge(StepEdge(src=src.id, dst=st.id))
 
@@ -90,9 +90,7 @@ def persist_single_step(
     """
     # Use typed fields instead of data dict
     new_node = PlanStep(
-        id=step_obj.id,
-        description=step_obj.title,
-        index=step_obj.index
+        id=step_obj.id, description=step_obj.title, index=step_obj.index
     )
     graph.add_node(new_node)
 
@@ -105,6 +103,8 @@ def persist_single_step(
 
     # dependency edges for the new step
     for dep_idx in step_obj.after:
-        dep = (parent_step._index_map if hasattr(parent_step, "_index_map") else {}).get(dep_idx)  # type: ignore[attr-defined]
+        dep = (
+            parent_step._index_map if hasattr(parent_step, "_index_map") else {}
+        ).get(dep_idx)  # type: ignore[attr-defined]
         if dep:
             graph.add_edge(StepEdge(src=dep.id, dst=step_obj.id))

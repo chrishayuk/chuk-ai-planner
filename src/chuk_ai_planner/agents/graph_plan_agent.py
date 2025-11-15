@@ -6,7 +6,7 @@ from chuk_ai_planner.planner import Plan
 from chuk_ai_planner.store.base import GraphStore
 from chuk_ai_planner.store.memory import InMemoryGraphStore
 
-from .plan_agent import PlanAgent, _Validate   # ← your existing file
+from .plan_agent import PlanAgent, _Validate  # ← your existing file
 
 __all__ = ["GraphPlanAgent"]
 
@@ -40,12 +40,10 @@ class GraphPlanAgent(PlanAgent):
         self._graph = graph or InMemoryGraphStore()
 
     # ------------------------------------------- public convenience API
-    async def plan_into_graph(
-        self, user_prompt: str
-    ) -> tuple[Plan, str, GraphStore]:
+    async def plan_into_graph(self, user_prompt: str) -> tuple[Plan, str, GraphStore]:
         """
-        • gets a *valid* JSON plan from the LLM (inherited logic)  
-        • builds & saves a `Plan` object  
+        • gets a *valid* JSON plan from the LLM (inherited logic)
+        • builds & saves a `Plan` object
         • returns (plan_obj, plan_node_id, graph_store)
         """
         json_plan: Dict[str, Any] = await super().plan(user_prompt)
@@ -62,9 +60,11 @@ class GraphPlanAgent(PlanAgent):
         from chuk_ai_planner.graph import ToolCall
         from chuk_ai_planner.graph import EdgeType, GraphEdge
 
-        idx2id = {n.data["index"]: n.id
-                  for n in self._graph.nodes.values()
-                  if n.__class__.__name__ == "PlanStep"}
+        idx2id = {
+            n.data["index"]: n.id
+            for n in self._graph.nodes.values()
+            if n.__class__.__name__ == "PlanStep"
+        }
 
         for idx, step in enumerate(json_plan["steps"], 1):
             tc = ToolCall(

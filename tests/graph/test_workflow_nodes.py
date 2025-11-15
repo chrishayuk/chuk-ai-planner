@@ -18,10 +18,7 @@ class TestApprovalNode:
 
     def test_create_basic_approval(self):
         """Should create approval node with required fields."""
-        approval = ApprovalNode(
-            approval_type="human",
-            prompt="Approve this content?"
-        )
+        approval = ApprovalNode(approval_type="human", prompt="Approve this content?")
 
         assert approval.kind == NodeType.APPROVAL
         assert approval.approval_type == "human"
@@ -38,7 +35,7 @@ class TestApprovalNode:
             approval_type="human",
             prompt="Quick approval needed",
             timeout_seconds=300,
-            auto_approve_after=600
+            auto_approve_after=600,
         )
 
         assert approval.timeout_seconds == 300
@@ -50,7 +47,7 @@ class TestApprovalNode:
             approval_type="human",
             prompt="Important decision",
             escalate_to="manager@company.com",
-            escalation_timeout=1800
+            escalation_timeout=1800,
         )
 
         assert approval.escalate_to == "manager@company.com"
@@ -58,10 +55,7 @@ class TestApprovalNode:
 
     def test_approval_status_defaults_to_pending(self):
         """Should default status to PENDING."""
-        approval = ApprovalNode(
-            approval_type="human",
-            prompt="Test"
-        )
+        approval = ApprovalNode(approval_type="human", prompt="Test")
 
         assert approval.status == ApprovalStatus.PENDING
 
@@ -73,7 +67,7 @@ class TestApprovalNode:
             prompt="Test",
             status=ApprovalStatus.APPROVED,
             approved_by="user123",
-            approved_at=now
+            approved_at=now,
         )
 
         assert approval.status == ApprovalStatus.APPROVED
@@ -88,7 +82,7 @@ class TestApprovalNode:
             prompt="Test",
             status=ApprovalStatus.REJECTED,
             rejected_at=now,
-            rejection_reason="Content doesn't meet standards"
+            rejection_reason="Content doesn't meet standards",
         )
 
         assert approval.status == ApprovalStatus.REJECTED
@@ -98,28 +92,19 @@ class TestApprovalNode:
     def test_approval_types(self):
         """Should support different approval types."""
         for approval_type in ["human", "system", "policy", "automated"]:
-            approval = ApprovalNode(
-                approval_type=approval_type,
-                prompt="Test"
-            )
+            approval = ApprovalNode(approval_type=approval_type, prompt="Test")
             assert approval.approval_type == approval_type
 
     def test_approval_immutable(self):
         """Should be immutable (frozen)."""
-        approval = ApprovalNode(
-            approval_type="human",
-            prompt="Test"
-        )
+        approval = ApprovalNode(approval_type="human", prompt="Test")
 
         with pytest.raises(ValidationError):
             approval.status = ApprovalStatus.APPROVED
 
     def test_approval_has_graph_node_fields(self):
         """Should have all GraphNode base fields."""
-        approval = ApprovalNode(
-            approval_type="human",
-            prompt="Test"
-        )
+        approval = ApprovalNode(approval_type="human", prompt="Test")
 
         assert hasattr(approval, "id")
         assert hasattr(approval, "kind")
@@ -129,17 +114,17 @@ class TestApprovalNode:
     def test_approval_model_copy(self):
         """Should support model_copy for updates."""
         approval = ApprovalNode(
-            approval_type="human",
-            prompt="Test",
-            status=ApprovalStatus.PENDING
+            approval_type="human", prompt="Test", status=ApprovalStatus.PENDING
         )
 
         now = datetime.now(timezone.utc)
-        approved = approval.model_copy(update={
-            "status": ApprovalStatus.APPROVED,
-            "approved_by": "user456",
-            "approved_at": now
-        })
+        approved = approval.model_copy(
+            update={
+                "status": ApprovalStatus.APPROVED,
+                "approved_by": "user456",
+                "approved_at": now,
+            }
+        )
 
         assert approved.status == ApprovalStatus.APPROVED
         assert approved.approved_by == "user456"
@@ -148,10 +133,7 @@ class TestApprovalNode:
 
     def test_approval_repr(self):
         """Should have useful repr."""
-        approval = ApprovalNode(
-            approval_type="human",
-            prompt="Test"
-        )
+        approval = ApprovalNode(approval_type="human", prompt="Test")
         repr_str = repr(approval)
 
         assert "approval" in repr_str
@@ -174,9 +156,7 @@ class TestApprovalStatusTransitions:
     def test_pending_to_approved(self):
         """Should transition from PENDING to APPROVED."""
         approval = ApprovalNode(
-            approval_type="human",
-            prompt="Test",
-            status=ApprovalStatus.PENDING
+            approval_type="human", prompt="Test", status=ApprovalStatus.PENDING
         )
 
         approved = approval.model_copy(update={"status": ApprovalStatus.APPROVED})
@@ -185,9 +165,7 @@ class TestApprovalStatusTransitions:
     def test_pending_to_rejected(self):
         """Should transition from PENDING to REJECTED."""
         approval = ApprovalNode(
-            approval_type="human",
-            prompt="Test",
-            status=ApprovalStatus.PENDING
+            approval_type="human", prompt="Test", status=ApprovalStatus.PENDING
         )
 
         rejected = approval.model_copy(update={"status": ApprovalStatus.REJECTED})
@@ -196,9 +174,7 @@ class TestApprovalStatusTransitions:
     def test_pending_to_timeout(self):
         """Should transition from PENDING to TIMEOUT."""
         approval = ApprovalNode(
-            approval_type="human",
-            prompt="Test",
-            status=ApprovalStatus.PENDING
+            approval_type="human", prompt="Test", status=ApprovalStatus.PENDING
         )
 
         timeout = approval.model_copy(update={"status": ApprovalStatus.TIMEOUT})
@@ -207,9 +183,7 @@ class TestApprovalStatusTransitions:
     def test_pending_to_escalated(self):
         """Should transition from PENDING to ESCALATED."""
         approval = ApprovalNode(
-            approval_type="human",
-            prompt="Test",
-            status=ApprovalStatus.PENDING
+            approval_type="human", prompt="Test", status=ApprovalStatus.PENDING
         )
 
         escalated = approval.model_copy(update={"status": ApprovalStatus.ESCALATED})

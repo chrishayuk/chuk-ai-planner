@@ -25,6 +25,7 @@ class NodeType(str, Enum):
     Domain-agnostic types for planning and execution.
     Each node type represents a different concept in the planning/execution model.
     """
+
     SESSION = "session"
     PLAN = "plan"
     PLAN_STEP = "plan_step"
@@ -42,6 +43,7 @@ class EdgeType(str, Enum):
 
     Edges define relationships and execution flow between nodes.
     """
+
     PARENT_CHILD = "parent_child"  # Hierarchical relationship
     NEXT = "next"  # Temporal/sequential ordering
     PLAN_LINK = "plan_link"  # Links plan to its steps
@@ -59,6 +61,7 @@ class RouterType(str, Enum):
 
     Determines how a router step decides which path to take.
     """
+
     EXPRESSION = "expression"  # Evaluate boolean expression
     LLM = "llm"  # Ask LLM to choose route
     FUNCTION = "function"  # Execute custom function
@@ -70,6 +73,7 @@ class StepStatus(str, Enum):
 
     Tracks the lifecycle of a step during plan execution.
     """
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -89,6 +93,7 @@ class ApprovalStatus(str, Enum):
 
     Tracks the state of human-in-the-loop approval nodes.
     """
+
     PENDING = "pending"  # Waiting for approval
     APPROVED = "approved"  # Approved by human
     REJECTED = "rejected"  # Rejected by human
@@ -102,6 +107,7 @@ class ReliabilityProfile(str, Enum):
 
     Determines default retry, timeout, and error handling behavior.
     """
+
     AGGRESSIVE = "aggressive"  # Fast, minimal retries
     BALANCED = "balanced"  # Moderate retries and timeouts
     ULTRA_SAFE = "ultra_safe"  # Maximum retries, conservative timeouts

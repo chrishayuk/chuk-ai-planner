@@ -26,7 +26,7 @@ class TestApprovalEdge:
             approval_node_id="approval_node_123",
             on_approved="publish_step",
             on_rejected="revise_step",
-            on_timeout="escalate_step"
+            on_timeout="escalate_step",
         )
 
         assert edge.kind == EdgeType.APPROVAL
@@ -45,7 +45,7 @@ class TestApprovalEdge:
             approval_node_id="approval",
             on_approved="approved",
             on_rejected="rejected",
-            on_timeout="timeout"
+            on_timeout="timeout",
         )
 
         with pytest.raises(ValidationError):
@@ -59,7 +59,7 @@ class TestApprovalEdge:
             approval_node_id="approval",
             on_approved="approved",
             on_rejected="rejected",
-            on_timeout="timeout"
+            on_timeout="timeout",
         )
 
         assert edge.id is not None
@@ -73,7 +73,7 @@ class TestApprovalEdge:
             approval_node_id="approval",
             on_approved="approved",
             on_rejected="rejected",
-            on_timeout="timeout"
+            on_timeout="timeout",
         )
         repr_str = repr(edge)
 
@@ -87,7 +87,7 @@ class TestApprovalEdge:
                 dst="next",
                 on_approved="approved",
                 on_rejected="rejected",
-                on_timeout="timeout"
+                on_timeout="timeout",
                 # Missing approval_node_id
             )
 
@@ -99,7 +99,7 @@ class TestApprovalEdge:
             approval_node_id="approval",
             on_approved="step1",
             on_rejected="step2",
-            on_timeout="step3"
+            on_timeout="step3",
         )
 
         assert edge.on_approved != edge.on_rejected
@@ -112,10 +112,7 @@ class TestFallbackEdge:
 
     def test_create_fallback_edge(self):
         """Should create fallback edge with default trigger."""
-        edge = FallbackEdge(
-            src="risky_step",
-            dst="safe_step"
-        )
+        edge = FallbackEdge(src="risky_step", dst="safe_step")
 
         assert edge.kind == EdgeType.FALLBACK
         assert edge.src == "risky_step"
@@ -129,7 +126,7 @@ class TestFallbackEdge:
         edge = FallbackEdge(
             src="step",
             dst="fallback",
-            trigger_on=["error", "timeout", "max_retries_exceeded"]
+            trigger_on=["error", "timeout", "max_retries_exceeded"],
         )
 
         assert "error" in edge.trigger_on
@@ -138,45 +135,29 @@ class TestFallbackEdge:
 
     def test_fallback_with_priority(self):
         """Should support priority for multiple fallbacks."""
-        edge1 = FallbackEdge(
-            src="step",
-            dst="fallback1",
-            priority=1
-        )
-        edge2 = FallbackEdge(
-            src="step",
-            dst="fallback2",
-            priority=2
-        )
+        edge1 = FallbackEdge(src="step", dst="fallback1", priority=1)
+        edge2 = FallbackEdge(src="step", dst="fallback2", priority=2)
 
         assert edge2.priority > edge1.priority
 
     def test_fallback_with_cost_trigger(self):
         """Should support cost-based triggering."""
         edge = FallbackEdge(
-            src="expensive_step",
-            dst="cheap_fallback",
-            max_cost_exceeded=True
+            src="expensive_step", dst="cheap_fallback", max_cost_exceeded=True
         )
 
         assert edge.max_cost_exceeded is True
 
     def test_fallback_edge_immutable(self):
         """Should be immutable (frozen)."""
-        edge = FallbackEdge(
-            src="step",
-            dst="fallback"
-        )
+        edge = FallbackEdge(src="step", dst="fallback")
 
         with pytest.raises(ValidationError):
             edge.priority = 10
 
     def test_fallback_edge_repr(self):
         """Should have useful repr."""
-        edge = FallbackEdge(
-            src="step",
-            dst="fallback"
-        )
+        edge = FallbackEdge(src="step", dst="fallback")
         repr_str = repr(edge)
 
         assert "fallback" in repr_str
@@ -199,7 +180,7 @@ class TestArtifactDependencyEdge:
             src="produce_step",
             dst="consume_step",
             artifact_id="video_123",
-            artifact_type="video"
+            artifact_type="video",
         )
 
         assert edge.kind == EdgeType.ARTIFACT_DEPENDENCY
@@ -216,7 +197,7 @@ class TestArtifactDependencyEdge:
             dst="step2",
             artifact_id="optional_art",
             artifact_type="image",
-            required=False
+            required=False,
         )
 
         assert edge.required is False
@@ -228,17 +209,14 @@ class TestArtifactDependencyEdge:
                 src="producer",
                 dst="consumer",
                 artifact_id=f"art_{artifact_type}",
-                artifact_type=artifact_type
+                artifact_type=artifact_type,
             )
             assert edge.artifact_type == artifact_type
 
     def test_artifact_dependency_immutable(self):
         """Should be immutable (frozen)."""
         edge = ArtifactDependencyEdge(
-            src="producer",
-            dst="consumer",
-            artifact_id="art",
-            artifact_type="video"
+            src="producer", dst="consumer", artifact_id="art", artifact_type="video"
         )
 
         with pytest.raises(ValidationError):
@@ -247,10 +225,7 @@ class TestArtifactDependencyEdge:
     def test_artifact_dependency_repr(self):
         """Should have useful repr."""
         edge = ArtifactDependencyEdge(
-            src="producer",
-            dst="consumer",
-            artifact_id="art",
-            artifact_type="video"
+            src="producer", dst="consumer", artifact_id="art", artifact_type="video"
         )
         repr_str = repr(edge)
 
@@ -262,7 +237,7 @@ class TestArtifactDependencyEdge:
             ArtifactDependencyEdge(
                 src="producer",
                 dst="consumer",
-                artifact_type="video"
+                artifact_type="video",
                 # Missing artifact_id
             )
 
@@ -270,7 +245,7 @@ class TestArtifactDependencyEdge:
             ArtifactDependencyEdge(
                 src="producer",
                 dst="consumer",
-                artifact_id="art"
+                artifact_id="art",
                 # Missing artifact_type
             )
 
@@ -281,16 +256,16 @@ class TestWorkflowEdgeCollections:
     def test_edges_in_sets(self):
         """Should work in sets (hashable)."""
         edge1 = ApprovalEdge(
-            src="a", dst="b",
+            src="a",
+            dst="b",
             approval_node_id="a",
             on_approved="b",
             on_rejected="c",
-            on_timeout="d"
+            on_timeout="d",
         )
         edge2 = FallbackEdge(src="e", dst="f")
         edge3 = ArtifactDependencyEdge(
-            src="g", dst="h",
-            artifact_id="art", artifact_type="video"
+            src="g", dst="h", artifact_id="art", artifact_type="video"
         )
 
         edge_set = {edge1, edge2, edge3}
@@ -299,11 +274,12 @@ class TestWorkflowEdgeCollections:
     def test_edges_as_dict_keys(self):
         """Should work as dict keys (hashable)."""
         edge = ApprovalEdge(
-            src="a", dst="b",
+            src="a",
+            dst="b",
             approval_node_id="a",
             on_approved="b",
             on_rejected="c",
-            on_timeout="d"
+            on_timeout="d",
         )
 
         edge_map = {edge: "approval_route"}
@@ -313,17 +289,16 @@ class TestWorkflowEdgeCollections:
         """Should be able to filter by edge kind."""
         edges = [
             ApprovalEdge(
-                src="a", dst="b",
+                src="a",
+                dst="b",
                 approval_node_id="a",
                 on_approved="b",
                 on_rejected="c",
-                on_timeout="d"
+                on_timeout="d",
             ),
             FallbackEdge(src="e", dst="f"),
             ArtifactDependencyEdge(
-                src="g", dst="h",
-                artifact_id="art",
-                artifact_type="video"
+                src="g", dst="h", artifact_id="art", artifact_type="video"
             ),
         ]
 

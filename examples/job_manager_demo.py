@@ -19,6 +19,7 @@ from chuk_ai_planner.store.memory import InMemoryGraphStore
 # SETUP
 # ────────────────────────────────────────────────────────────────────
 
+
 async def setup_manager():
     """Set up the job manager with planner and executor."""
 
@@ -50,13 +51,14 @@ async def setup_manager():
 # EXAMPLE 1: ONE-SHOT JOB
 # ────────────────────────────────────────────────────────────────────
 
+
 async def example_one_shot():
     """
     Simplest usage: describe what you want and get it done.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 1: One-Shot Job")
-    print("="*70)
+    print("=" * 70)
 
     manager = await setup_manager()
 
@@ -77,13 +79,14 @@ async def example_one_shot():
 # EXAMPLE 2: STEP-BY-STEP CONTROL
 # ────────────────────────────────────────────────────────────────────
 
+
 async def example_step_by_step():
     """
     More control: create, plan, and execute separately.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 2: Step-by-Step Job Control")
-    print("="*70)
+    print("=" * 70)
 
     manager = await setup_manager()
 
@@ -120,13 +123,14 @@ async def example_step_by_step():
 # EXAMPLE 3: RESUME AFTER FAILURE
 # ────────────────────────────────────────────────────────────────────
 
+
 async def example_resume():
     """
     Demonstrate resuming a failed job.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 3: Resume After Failure")
-    print("="*70)
+    print("=" * 70)
 
     manager = await setup_manager()
 
@@ -158,13 +162,14 @@ async def example_resume():
 # EXAMPLE 4: JOB MONITORING
 # ────────────────────────────────────────────────────────────────────
 
+
 async def example_monitoring():
     """
     Monitor job status and progress.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 4: Job Monitoring")
-    print("="*70)
+    print("=" * 70)
 
     manager = await setup_manager()
 
@@ -172,8 +177,8 @@ async def example_monitoring():
     jobs = []
     for i in range(3):
         job = await manager.create_job(
-            f"Task {i+1}: Process batch {i+1}",
-            tags=["batch", f"batch-{i+1}"],
+            f"Task {i + 1}: Process batch {i + 1}",
+            tags=["batch", f"batch-{i + 1}"],
         )
         jobs.append(job)
         # Start planning (but don't execute yet)
@@ -197,7 +202,7 @@ async def example_monitoring():
     print(f"  Description: {info['job'].description}")
     print(f"  Status: {info['job'].status}")
     print(f"  Runs: {len(info.get('runs', []))}")
-    if 'plan' in info:
+    if "plan" in info:
         print(f"  Plan: {info['plan'].id}")
 
     return info
@@ -207,13 +212,14 @@ async def example_monitoring():
 # EXAMPLE 5: CANCEL JOB
 # ────────────────────────────────────────────────────────────────────
 
+
 async def example_cancel():
     """
     Demonstrate cancelling a job.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 5: Cancel Job")
-    print("="*70)
+    print("=" * 70)
 
     manager = await setup_manager()
 
@@ -241,13 +247,14 @@ async def example_cancel():
 # EXAMPLE 6: MULTI-TENANT USAGE
 # ────────────────────────────────────────────────────────────────────
 
+
 async def example_multi_tenant():
     """
     Demonstrate using metadata for multi-tenant scenarios.
     """
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("EXAMPLE 6: Multi-Tenant Usage")
-    print("="*70)
+    print("=" * 70)
 
     manager = await setup_manager()
 
@@ -293,16 +300,17 @@ async def example_multi_tenant():
 # MAIN
 # ────────────────────────────────────────────────────────────────────
 
+
 async def main():
     """Run all examples."""
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("JOB MANAGER DEMO")
-    print("="*70)
+    print("=" * 70)
     print("\nThe JobManager provides a high-level API for orchestrating")
     print("AI-powered workflows. Just describe what you want, and the")
     print("system plans and executes it for you.")
-    print("="*70)
+    print("=" * 70)
 
     # Run examples
     await example_one_shot()
@@ -312,9 +320,9 @@ async def main():
     await example_cancel()
     await example_multi_tenant()
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("DEMO COMPLETE")
-    print("="*70)
+    print("=" * 70)
     print("\nKey Takeaways:")
     print("  1. JobManager provides Manus-style orchestration")
     print("  2. Natural language → Plan → Execute")
@@ -322,7 +330,7 @@ async def main():
     print("  4. Monitor and manage multiple jobs")
     print("  5. Enterprise features (metadata, tags, multi-tenant)")
     print("\nThis is the easiest way to use chuk-ai-planner!")
-    print("="*70)
+    print("=" * 70)
 
 
 if __name__ == "__main__":

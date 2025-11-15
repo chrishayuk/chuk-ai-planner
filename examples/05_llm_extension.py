@@ -42,16 +42,14 @@ def main():
 
     # 1. Create a Session (core node)
     session = SessionNode(
-        name="Weather Query Conversation",
-        description="User asking about weather"
+        name="Weather Query Conversation", description="User asking about weather"
     )
     graph.add_node(session)
     print(f"\n✅ Created Session: {session.name}")
 
     # 2. System Message (LLM extension!)
     system_msg = SystemMessage(
-        content="You are a helpful weather assistant.",
-        role="system"
+        content="You are a helpful weather assistant.", role="system"
     )
     graph.add_node(system_msg)
     graph.add_edge(ParentChildEdge(src=session.id, dst=system_msg.id))
@@ -61,9 +59,7 @@ def main():
 
     # 3. User Message (LLM extension!)
     user_msg = UserMessage(
-        content="What's the weather in New York?",
-        role="user",
-        user_id="user123"
+        content="What's the weather in New York?", role="user", user_id="user123"
     )
     graph.add_node(user_msg)
     graph.add_edge(ParentChildEdge(src=session.id, dst=user_msg.id))
@@ -74,8 +70,7 @@ def main():
 
     # 4. Create a Plan (core node) in response
     plan = PlanNode(
-        title="Weather Research Plan",
-        description="Fetch and summarize NYC weather"
+        title="Weather Research Plan", description="Fetch and summarize NYC weather"
     )
     graph.add_node(plan)
     graph.add_edge(ParentChildEdge(src=session.id, dst=plan.id))
@@ -93,8 +88,7 @@ def main():
 
     # 6. Tool Call for step 1 (core node)
     weather_tool = ToolCall(
-        name="get_weather",
-        args={"city": "New York", "units": "fahrenheit"}
+        name="get_weather", args={"city": "New York", "units": "fahrenheit"}
     )
     graph.add_node(weather_tool)
 
@@ -102,12 +96,14 @@ def main():
     assistant_msg = AssistantMessage(
         content="I'll check the weather for you.",
         role="assistant",
-        tool_calls=[{
-            "id": weather_tool.id,
-            "name": "get_weather",
-            "arguments": {"city": "New York"}
-        }],
-        model="gpt-4"
+        tool_calls=[
+            {
+                "id": weather_tool.id,
+                "name": "get_weather",
+                "arguments": {"city": "New York"},
+            }
+        ],
+        model="gpt-4",
     )
     graph.add_node(assistant_msg)
     graph.add_edge(ParentChildEdge(src=session.id, dst=assistant_msg.id))
@@ -132,9 +128,15 @@ def main():
 
     # LLM extension nodes
     print("\n📊 LLM Extension Nodes:")
-    print(f"   System Messages: {len([n for n in graph.nodes.values() if n.kind == 'system_message'])}")
-    print(f"   User Messages: {len([n for n in graph.nodes.values() if n.kind == 'user_message'])}")
-    print(f"   Assistant Messages: {len([n for n in graph.nodes.values() if n.kind == 'assistant_message'])}")
+    print(
+        f"   System Messages: {len([n for n in graph.nodes.values() if n.kind == 'system_message'])}"
+    )
+    print(
+        f"   User Messages: {len([n for n in graph.nodes.values() if n.kind == 'user_message'])}"
+    )
+    print(
+        f"   Assistant Messages: {len([n for n in graph.nodes.values() if n.kind == 'assistant_message'])}"
+    )
 
     # 9. Demonstrate Extension Pattern
     print("\n" + "=" * 70)

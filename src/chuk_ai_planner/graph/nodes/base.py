@@ -68,5 +68,5 @@ class GraphNode(BaseModel):
     def __repr__(self) -> str:
         """Clean repr showing kind and short ID."""
         # Handle both enum (NodeType.PLAN) and string ("user_message") kinds
-        kind_str = self.kind.value if hasattr(self.kind, 'value') else self.kind
+        kind_str = self.kind.value if hasattr(self.kind, "value") else self.kind
         return f"<{kind_str}:{self.id[:8]}>"

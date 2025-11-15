@@ -27,14 +27,14 @@ import textwrap
 from typing import Any, Callable, Dict, List, Tuple
 
 from dotenv import load_dotenv
+from openai import AsyncOpenAI
 
 load_dotenv()  # makes OPENAI_API_KEY available
-
-from openai import AsyncOpenAI
 
 __all__ = ["PlanAgent"]
 
 _Validate = Callable[[Dict[str, Any]], Tuple[bool, str]]
+
 
 class PlanAgent:
     """Loop-until-valid plan generator with a transparent `history` log."""
@@ -48,11 +48,11 @@ class PlanAgent:
         temperature: float = 0.3,
         max_retries: int = 3,
     ):
-        self.system_prompt   = textwrap.dedent(system_prompt).strip()
-        self.validate_step   = validate_step
-        self.model           = model
-        self.temperature     = temperature
-        self.max_retries     = max_retries
+        self.system_prompt = textwrap.dedent(system_prompt).strip()
+        self.validate_step = validate_step
+        self.model = model
+        self.temperature = temperature
+        self.max_retries = max_retries
         self.history: List[Dict[str, Any]] = []
         self._client = AsyncOpenAI()
 
@@ -72,8 +72,10 @@ class PlanAgent:
 
         for attempt in range(1, self.max_retries + 1):
             raw = await self._chat(
-                [{"role": "system", "content": self.system_prompt},
-                 {"role": "user",   "content": prompt}]
+                [
+                    {"role": "system", "content": self.system_prompt},
+                    {"role": "user", "content": prompt},
+                ]
             )
 
             record = {"attempt": attempt, "raw": raw}
@@ -85,7 +87,9 @@ class PlanAgent:
             else:
                 errors = [
                     msg
-                    for ok, msg in (self.validate_step(s) for s in plan.get("steps", []))
+                    for ok, msg in (
+                        self.validate_step(s) for s in plan.get("steps", [])
+                    )
                     if not ok
                 ]
                 record["errors"] = errors

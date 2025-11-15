@@ -58,7 +58,7 @@ class TestGraphEdgeBase:
         # Should not equal non-edge objects
         assert edge != "not an edge"
         assert edge != 123
-        assert edge != None
+        assert edge is not None
         assert edge != {"id": edge.id}
 
 

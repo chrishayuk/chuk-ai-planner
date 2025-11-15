@@ -27,6 +27,7 @@ class GraphAwareToolProcessor:
     Tool processor using GraphNodeManager for CRUD and PlanExecutor for plan execution.
     Updated to work with the latest chuk_tool_processor.
     """
+
     def __init__(
         self,
         session_id: str,
@@ -35,7 +36,7 @@ class GraphAwareToolProcessor:
         max_llm_retries: int = 2,
         llm_retry_prompt: Optional[str] = None,
         enable_caching: bool = True,
-        enable_retries: bool = True
+        enable_retries: bool = True,
     ):
         self.session_id = session_id
         self.graph_store = graph_store
@@ -43,8 +44,8 @@ class GraphAwareToolProcessor:
         self.plan_executor = PlanExecutor(graph_store)
         self.max_llm_retries = max_llm_retries
         self.llm_retry_prompt = (
-            llm_retry_prompt or
-            "Previous response contained no valid `tool_call`. "
+            llm_retry_prompt
+            or "Previous response contained no valid `tool_call`. "
             "Return ONLY a JSON block invoking one of the declared tools."
         )
         self.enable_caching = enable_caching
@@ -55,25 +56,27 @@ class GraphAwareToolProcessor:
 
         # detect an appropriate error event type
         self._error_event_type = next(
-            (et for et in EventType if et.name in ('ERROR', 'FAILURE', 'EXCEPTION')),
-            EventType.MESSAGE
+            (et for et in EventType if et.name in ("ERROR", "FAILURE", "EXCEPTION")),
+            EventType.MESSAGE,
         )
 
     async def _get_tool_executor(self):
         """Get or initialize a tool executor with the current registry."""
-        if not hasattr(self, '_executor') or self._executor is None:
+        if not hasattr(self, "_executor") or self._executor is None:
             try:
                 # Try to import and use the new tool processor
                 from chuk_tool_processor.registry import get_default_registry
-                from chuk_tool_processor.execution.strategies.inprocess_strategy import InProcessStrategy
+                from chuk_tool_processor.execution.strategies.inprocess_strategy import (
+                    InProcessStrategy,
+                )
                 from chuk_tool_processor.execution.tool_executor import ToolExecutor
-                
+
                 registry = await get_default_registry()
                 strategy = InProcessStrategy(registry)
                 self._executor = ToolExecutor(registry=registry, strategy=strategy)
             except ImportError:
                 self._executor = None
-        
+
         return self._executor
 
     def register_tool(self, name: str, fn: Callable):
@@ -84,7 +87,7 @@ class GraphAwareToolProcessor:
         self,
         assistant_msg: Dict[str, Any],
         llm_call_fn: Callable[[str], Any],
-        assistant_node_id: Optional[str] = None
+        assistant_node_id: Optional[str] = None,
     ) -> List[ToolResult]:
         """
         Process tool calls from an LLM message, with retry logic,
@@ -103,9 +106,7 @@ class GraphAwareToolProcessor:
 
         # record the assistant message event
         evt = SessionEvent(
-            message=assistant_msg,
-            type=EventType.MESSAGE,
-            source=EventSource.SYSTEM
+            message=assistant_msg, type=EventType.MESSAGE, source=EventSource.SYSTEM
         )
         session.events.append(evt)
         store.save(session)
@@ -119,11 +120,13 @@ class GraphAwareToolProcessor:
         # retry loop for missing tool_calls
         attempt = 0
         while True:
-            tool_calls = assistant_msg.get('tool_calls', [])
+            tool_calls = assistant_msg.get("tool_calls", [])
             if tool_calls:
                 results: List[ToolResult] = []
                 for tc in tool_calls:
-                    res = await self._process_single_tool_call(tc, parent_id, assistant_node_id)
+                    res = await self._process_single_tool_call(
+                        tc, parent_id, assistant_node_id
+                    )
                     results.append(res)
                 run.mark_completed()
                 store.save(session)
@@ -131,20 +134,20 @@ class GraphAwareToolProcessor:
 
             # no tool_calls found => retry or fail
             if attempt >= self.max_llm_retries:
-                run.mark_failed('Max LLM retries exceeded')
+                run.mark_failed("Max LLM retries exceeded")
                 store.save(session)
                 self._create_child_event(
                     self._error_event_type,
-                    {'error': 'Max LLM retries exceeded'},
-                    parent_id
+                    {"error": "Max LLM retries exceeded"},
+                    parent_id,
                 )
-                raise RuntimeError('Max LLM retries exceeded')
+                raise RuntimeError("Max LLM retries exceeded")
 
             attempt += 1
             self._create_child_event(
                 EventType.SUMMARY,
-                {'note': 'Retry due to missing tool calls', 'attempt': attempt},
-                parent_id
+                {"note": "Retry due to missing tool calls", "attempt": attempt},
+                parent_id,
             )
             assistant_msg = await llm_call_fn(self.llm_retry_prompt)
 
@@ -152,20 +155,20 @@ class GraphAwareToolProcessor:
         self,
         tool_call: Dict[str, Any],
         parent_event_id: str,
-        assistant_node_id: Optional[str]
+        assistant_node_id: Optional[str],
     ) -> ToolResult:
         """
         Execute one tool call, record session events, update the graph,
         and return a ToolResult.
         """
-        fn_data = tool_call.get('function', {})
-        tool_name = fn_data.get('name')
-        args_json = fn_data.get('arguments', '{}')
+        fn_data = tool_call.get("function", {})
+        tool_name = fn_data.get("name")
+        args_json = fn_data.get("arguments", "{}")
         try:
             args = json.loads(args_json)
         except json.JSONDecodeError:
-            args = {'raw_text': args_json}
-        call_id = tool_call.get('id', uuid4().hex)
+            args = {"raw_text": args_json}
+        call_id = tool_call.get("id", uuid4().hex)
 
         # caching check
         cache_key = None
@@ -175,61 +178,74 @@ class GraphAwareToolProcessor:
                 cached = self._cache[cache_key]
                 self._create_child_event(
                     EventType.TOOL_CALL,
-                    {'tool': tool_name, 'args': args, 'result': cached, 'cached': True},
-                    parent_event_id
+                    {"tool": tool_name, "args": args, "result": cached, "cached": True},
+                    parent_event_id,
                 )
                 if assistant_node_id:
                     tool_node = self.node_mgr.create_tool_call_node(
                         tool_name, args, cached, assistant_node_id, is_cached=True
                     )
-                    self.node_mgr.create_task_run_node(tool_node.id, True, error=None, result=cached)
+                    self.node_mgr.create_task_run_node(
+                        tool_node.id, True, error=None, result=cached
+                    )
                 return ToolResult(id=call_id, tool=tool_name, args=args, result=cached)
 
         # First, try to use the new tool executor
         executor = await self._get_tool_executor()
         if executor is not None:
             try:
-                from chuk_tool_processor.models.tool_call import ToolCall as ProcessorToolCall
-                
-                # Create a ToolCall for the executor
-                tc = ProcessorToolCall(
-                    id=call_id,
-                    tool=tool_name,
-                    arguments=args
+                from chuk_tool_processor.models.tool_call import (
+                    ToolCall as ProcessorToolCall,
                 )
-                
+
+                # Create a ToolCall for the executor
+                tc = ProcessorToolCall(id=call_id, tool=tool_name, arguments=args)
+
                 # Execute the tool
                 results = await executor.execute([tc])
                 if results and len(results) > 0:
                     result = results[0].result
                     error = results[0].error
                     success = not bool(error)
-                    
+
                     # Cache on success
                     if success and cache_key:
                         self._cache[cache_key] = result
-                    
+
                     # Record in session events
                     self._create_child_event(
                         EventType.TOOL_CALL,
-                        {'tool': tool_name, 'args': args, 'result': result, 'error': error},
-                        parent_event_id
+                        {
+                            "tool": tool_name,
+                            "args": args,
+                            "result": result,
+                            "error": error,
+                        },
+                        parent_event_id,
                     )
-                    
+
                     # Update graph nodes
                     if assistant_node_id:
                         tool_node = self.node_mgr.create_tool_call_node(
                             tool_name, args, result, assistant_node_id, error=error
                         )
-                        self.node_mgr.create_task_run_node(tool_node.id, success, error=error, result=result)
+                        self.node_mgr.create_task_run_node(
+                            tool_node.id, success, error=error, result=result
+                        )
 
                     return ToolResult(
-                        id=call_id, tool=tool_name, args=args, result=result, error=error
+                        id=call_id,
+                        tool=tool_name,
+                        args=args,
+                        result=result,
+                        error=error,
                     )
             except Exception as ex:
-                _log.warning(f"Error using tool executor: {ex}. Falling back to registered tool.")
+                _log.warning(
+                    f"Error using tool executor: {ex}. Falling back to registered tool."
+                )
                 # Fall through to the registered tool approach
-        
+
         # Fall back to using the registered tool
         tool_fn = self.tool_registry.get(tool_name)
         if not tool_fn:
@@ -248,8 +264,8 @@ class GraphAwareToolProcessor:
         # Record in session events
         self._create_child_event(
             EventType.TOOL_CALL,
-            {'tool': tool_name, 'args': args, 'result': result, 'error': error},
-            parent_event_id
+            {"tool": tool_name, "args": args, "result": result, "error": error},
+            parent_event_id,
         )
 
         # Update graph nodes
@@ -257,17 +273,16 @@ class GraphAwareToolProcessor:
             tool_node = self.node_mgr.create_tool_call_node(
                 tool_name, args, result, assistant_node_id, error=error
             )
-            self.node_mgr.create_task_run_node(tool_node.id, success, error=error, result=result)
+            self.node_mgr.create_task_run_node(
+                tool_node.id, success, error=error, result=result
+            )
 
         return ToolResult(
             id=call_id, tool=tool_name, args=args, result=result, error=error
         )
 
     def _create_child_event(
-        self,
-        event_type: EventType,
-        message: Dict[str, Any],
-        parent_id: str
+        self, event_type: EventType, message: Dict[str, Any], parent_id: str
     ) -> SessionEvent:
         """
         Emit a session event as a child of the given parent_id and persist.
@@ -278,12 +293,12 @@ class GraphAwareToolProcessor:
             message=message,
             type=event_type,
             source=EventSource.SYSTEM,
-            metadata={'parent_event_id': parent_id}
+            metadata={"parent_event_id": parent_id},
         )
         session.events.append(evt)
         store.save(session)
         return evt
-    
+
     async def process_plan(
         self,
         plan_node_id: str,
@@ -307,18 +322,18 @@ class GraphAwareToolProcessor:
         """
         # Get the store
         store = SessionStoreProvider.get_store()
-        
+
         # Check if store is a coroutine and await it if necessary
         if asyncio.iscoroutine(store):
             store = await store
-        
+
         # Get the session from the store
         session = store.get(self.session_id)
-        
+
         # Check if session is a coroutine and await it if necessary
         if asyncio.iscoroutine(session):
             session = await session
-            
+
         if not session:
             raise RuntimeError(f"Session {self.session_id} not found")
 
@@ -330,10 +345,10 @@ class GraphAwareToolProcessor:
 
         # Create parent event
         parent_evt = SessionEvent(
-            message={'plan_id': plan_node_id},
+            message={"plan_id": plan_node_id},
             type=EventType.SUMMARY,
             source=EventSource.SYSTEM,
-            metadata={'description': 'Plan execution started'},
+            metadata={"description": "Plan execution started"},
         )
         session.events.append(parent_evt)
         store.save(session)
@@ -369,20 +384,19 @@ class GraphAwareToolProcessor:
         # Complete the run
         run.mark_completed()
         store.save(session)
-        
+
         # Create summary event
         summary_evt = SessionEvent(
             message={
-                'plan_id': plan_node_id,
-                'steps_executed': len(steps),
-                'tools_executed': len(all_results),
+                "plan_id": plan_node_id,
+                "steps_executed": len(steps),
+                "tools_executed": len(all_results),
             },
             type=EventType.SUMMARY,
             source=EventSource.SYSTEM,
-            metadata={'parent_event_id': parent_id},
+            metadata={"parent_event_id": parent_id},
         )
         session.events.append(summary_evt)
         store.save(session)
-        
+
         return all_results
-    

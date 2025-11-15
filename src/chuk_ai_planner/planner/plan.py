@@ -1,6 +1,4 @@
 # chuk_ai_planner/planner/plan.py
-from __future__ import annotations
-
 """
 chuk_ai_planner.planner.plan
 ======================
@@ -18,6 +16,8 @@ pieces focused:
 
 Only the `Plan` class below is re-exported by `chuk_ai_planner.planner`.
 """
+
+from __future__ import annotations
 
 from typing import Dict, List, Sequence
 
@@ -42,8 +42,8 @@ class Plan:
 
         self._root: _Step = _Step("[ROOT]")
         self._cursor: _Step = self._root
-        self._indexed: bool = False              # lazy numbering
-        self._by_index: Dict[str, _Step] = {}    # "1.2" -> _Step
+        self._indexed: bool = False  # lazy numbering
+        self._by_index: Dict[str, _Step] = {}  # "1.2" -> _Step
 
     # ---------------------------------------------------------------- builder
     def step(self, title: str, *, after: Sequence[str] = ()) -> "Plan":
@@ -82,16 +82,17 @@ class Plan:
         new_idx_num = len(parent_step.children)
         new_step.index = (
             f"{parent_step.index}.{new_idx_num}"
-            if parent_step.index else str(new_idx_num)
+            if parent_step.index
+            else str(new_idx_num)
         )
         self._by_index[new_step.index] = new_step
 
         # ── persist the single new step (fixed signature) ────────────
         persist_single_step(
-            new_step,           # the *_Step* object
-            parent_step,        # its parent
-            self._graph,        # target graph store
-            self.id,            # id of the PlanNode
+            new_step,  # the *_Step* object
+            parent_step,  # its parent
+            self._graph,  # target graph store
+            self.id,  # id of the PlanNode
         )
         return new_step.index
 
@@ -110,9 +111,7 @@ class Plan:
         lines: List[str] = [f"Plan: {self.title}   (id: {self.id[:8]})"]
         for st in iter_steps(self._root):
             deps = f"  depends on {st.after}" if st.after else ""
-            lines.append(
-                f"  {st.index:<6} {st.title:<35} (step_id: {st.id[:8]}){deps}"
-            )
+            lines.append(f"  {st.index:<6} {st.title:<35} (step_id: {st.id[:8]}){deps}")
         return "\n".join(lines)
 
     # ---------------------------------------------------------------- save

@@ -12,14 +12,14 @@ from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 # --------------------------------------------------------------------------- #
 #  Imports from the planner package                                           #
 # --------------------------------------------------------------------------- #
 
 from chuk_ai_planner.planner.universal_plan import UniversalPlan
 from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+
+load_dotenv()
 
 # --------------------------------------------------------------------------- #
 #  Logging setup                                                              #
@@ -32,10 +32,12 @@ logger = logging.getLogger(__name__)
 #  Dataclasses                                                                #
 # --------------------------------------------------------------------------- #
 
+
 @dataclass
 class ResearchConfig:
     max_results: int = 5
     max_rounds: int = 1
+
 
 # --------------------------------------------------------------------------- #
 #  In-memory store for docs gathered during a run                             #
@@ -47,6 +49,7 @@ research_documents: List[Dict[str, Any]] = []
 # --------------------------------------------------------------------------- #
 #  Tool: search                                                               #
 # --------------------------------------------------------------------------- #
+
 
 async def search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -85,6 +88,7 @@ async def search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
 #  Tool: summarize                                                            #
 # --------------------------------------------------------------------------- #
 
+
 def summarize_tool(*_: Any, **__: Any) -> Dict[str, Any]:
     """
     Create a summary of `research_documents`.
@@ -107,6 +111,7 @@ def summarize_tool(*_: Any, **__: Any) -> Dict[str, Any]:
 # --------------------------------------------------------------------------- #
 #  Main research routine                                                      #
 # --------------------------------------------------------------------------- #
+
 
 async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
     """
@@ -142,7 +147,7 @@ async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
     s2 = plan.add_function_step(
         title=f"Summarize findings about {topic}",
         function="summarize",
-        args={},                # summary uses global docs
+        args={},  # summary uses global docs
         depends_on=[s1],
         result_variable="summary",
     )
@@ -161,8 +166,14 @@ async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
             return {"error": err}
 
         # Extract variables from the run
-        search_results = result["variables"].get("search_results", {}).get("results", [])
-        summary_text   = result["variables"].get("summary", {}).get("summary", "No summary generated.")
+        search_results = (
+            result["variables"].get("search_results", {}).get("results", [])
+        )
+        summary_text = (
+            result["variables"]
+            .get("summary", {})
+            .get("summary", "No summary generated.")
+        )
 
         # Ensure the global list holds the final results
         research_documents.clear()
@@ -189,8 +200,9 @@ async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-#  CLI wrapper                                                                
+#  CLI wrapper
 # --------------------------------------------------------------------------- #
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Simple Deep Research Tool")

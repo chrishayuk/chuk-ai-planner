@@ -1,5 +1,8 @@
 # tests/utils/test_visualization.py
-from chuk_ai_planner.utils.visualization import print_session_events, print_graph_structure
+from chuk_ai_planner.utils.visualization import (
+    print_session_events,
+    print_graph_structure,
+)
 
 from chuk_session_manager.models.session import Session, SessionEvent
 from chuk_session_manager.models.event_type import EventType
@@ -14,14 +17,14 @@ def test_print_session_events_nested_and_types(capsys):
     root = SessionEvent(
         message={"content": "User says hello"},
         type=EventType.MESSAGE,
-        source=EventSource.USER
+        source=EventSource.USER,
     )
     session.events.append(root)
     child = SessionEvent(
         message={"tool": "weather", "error": None},
         type=EventType.TOOL_CALL,
         source=EventSource.LLM,
-        metadata={"parent_event_id": root.id}
+        metadata={"parent_event_id": root.id},
     )
     session.events.append(child)
 

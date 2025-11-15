@@ -6,17 +6,17 @@ PlanExecutor
 Utility class that lives *below* the high-level Plan DSL and *above* the
 GraphAwareToolProcessor.  It provides three things:
 
-1. ``get_plan_steps(plan_id)``  
+1. ``get_plan_steps(plan_id)``
    - Returns **all** ``PLAN_STEP`` nodes under a ``PlanNode`` — including
    nested sub-steps such as *1.2.3* — by doing a DFS over ``PARENT_CHILD``
    edges.
 
-2. ``determine_execution_order(steps)``  
+2. ``determine_execution_order(steps)``
    - Topologically batches the steps so that every step whose
-   dependencies are met can run in parallel.  
+   dependencies are met can run in parallel.
    - An edge ``STEP_ORDER(src → dst)`` means *dst depends on src*.
 
-3. ``execute_step(...)``  
+3. ``execute_step(...)``
    - Runs the tool-calls explicitly linked to one step, emits start /
    completion session-events, and returns a list of ``ToolResult``-like
    payloads.
@@ -24,6 +24,7 @@ GraphAwareToolProcessor.  It provides three things:
 Nothing in here is author-facing; it is an internal helper that lets the
 *Processor* stay slim.
 """
+
 from __future__ import annotations
 import json
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
@@ -68,7 +69,9 @@ class PlanExecutor:
 
         while stack:
             parent = stack.pop()
-            for edge in self.graph_store.get_edges(src=parent, kind=EdgeType.PARENT_CHILD):
+            for edge in self.graph_store.get_edges(
+                src=parent, kind=EdgeType.PARENT_CHILD
+            ):
                 node = self.graph_store.get_node(edge.dst)
                 if not node:
                     continue
@@ -90,10 +93,12 @@ class PlanExecutor:
         respected.
         """
         dependencies: Dict[str, Set[str]] = {s.id: set() for s in steps}
-        dependents:   Dict[str, Set[str]] = {s.id: set() for s in steps}
+        dependents: Dict[str, Set[str]] = {s.id: set() for s in steps}
 
         for step in steps:
-            for edge in self.graph_store.get_edges(src=step.id, kind=EdgeType.STEP_ORDER):
+            for edge in self.graph_store.get_edges(
+                src=step.id, kind=EdgeType.STEP_ORDER
+            ):
                 # edge.src (=step.id) must run *before* edge.dst
                 dependencies[edge.dst].add(step.id)
                 dependents[step.id].add(edge.dst)
@@ -125,13 +130,15 @@ class PlanExecutor:
         assistant_node_id: str,
         parent_event_id: str,
         create_child_event: Callable[[EventType, Dict[str, Any], str], Any],
-        process_tool_call: Callable[[Dict[str, Any], str, Optional[str]], Awaitable[Any]],
+        process_tool_call: Callable[
+            [Dict[str, Any], str, Optional[str]], Awaitable[Any]
+        ],
     ) -> List[Any]:
         """
-        1. Emit \"started\" summary event.  
+        1. Emit \"started\" summary event.
         2. For each linked ``PLAN_LINK`` → ``ToolCall`` execute the tool via
-           *process_tool_call*.  
-        3. Emit \"completed\" summary event.  
+           *process_tool_call*.
+        3. Emit \"completed\" summary event.
         4. Return list of tool results.
         """
         step_node = self.graph_store.get_node(step_id)
@@ -157,7 +164,7 @@ class PlanExecutor:
             # Get tool data and unfreeze for JSON serialization
             tool_name = tool_node.name
             tool_args = tool_node.args
-            
+
             # Unfreeze the args for JSON serialization
             unfrozen_args = unfreeze_data(tool_args)
 

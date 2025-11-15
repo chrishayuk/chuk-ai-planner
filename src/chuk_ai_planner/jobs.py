@@ -35,6 +35,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from pydantic import BaseModel, Field
 
 from chuk_ai_planner.agents.graph_plan_agent import GraphPlanAgent
+from chuk_ai_planner.graph.types import EdgeType
 from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
 from chuk_ai_planner.store.base import GraphStore
 
@@ -627,7 +628,7 @@ class JobManager:
                 "failed_runs": job.failed_runs,
                 "created_at": job.created_at.isoformat(),
                 "updated_at": job.updated_at.isoformat(),
-            }
+            },
         )
         await self.store.add_node(node)
 
@@ -655,7 +656,7 @@ class JobManager:
                 "created_at": run.created_at.isoformat(),
                 "started_at": run.started_at.isoformat() if run.started_at else None,
                 "finished_at": run.finished_at.isoformat() if run.finished_at else None,
-            }
+            },
         )
         await self.store.add_node(node)
 
@@ -709,8 +710,12 @@ class JobManager:
             steps_failed=data.get("steps_failed", 0),
             steps_skipped=data.get("steps_skipped", 0),
             created_at=datetime.fromisoformat(data["created_at"]),
-            started_at=datetime.fromisoformat(data["started_at"]) if data.get("started_at") else None,
-            finished_at=datetime.fromisoformat(data["finished_at"]) if data.get("finished_at") else None,
+            started_at=datetime.fromisoformat(data["started_at"])
+            if data.get("started_at")
+            else None,
+            finished_at=datetime.fromisoformat(data["finished_at"])
+            if data.get("finished_at")
+            else None,
         )
 
     async def _list_jobs(
@@ -747,7 +752,7 @@ class JobManager:
         jobs.sort(key=lambda j: j.updated_at, reverse=True)
 
         # Pagination
-        return jobs[offset:offset + limit]
+        return jobs[offset : offset + limit]
 
     async def _list_job_runs(self, job_id: str) -> List[JobRun]:
         """List all runs for a job."""
@@ -788,10 +793,7 @@ class JobManager:
             return {
                 "type": "list",
                 "length": len(result),
-                "sample": result[:3] if len(result) > 0 else []
+                "sample": result[:3] if len(result) > 0 else [],
             }
         else:
-            return {
-                "type": type(result).__name__,
-                "repr": repr(result)[:200]
-            }
+            return {"type": type(result).__name__, "repr": repr(result)[:200]}

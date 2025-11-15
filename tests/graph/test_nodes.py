@@ -65,7 +65,7 @@ class TestGraphNodeBase:
         # Should not equal non-node objects
         assert node != "not a node"
         assert node != 123
-        assert node != None
+        assert node is not None
         assert node != {"id": node.id}
 
 
@@ -460,7 +460,11 @@ class TestNodeCollections:
             PlanNode(title="Plan"),
             PlanStep(description="Step 1"),
             PlanStep(description="Step 2"),
-            RouterStep(router_type=RouterType.EXPRESSION, routes=["a", "b"], description="Router"),
+            RouterStep(
+                router_type=RouterType.EXPRESSION,
+                routes=["a", "b"],
+                description="Router",
+            ),
         ]
 
         steps = [n for n in nodes if n.kind == NodeType.PLAN_STEP]

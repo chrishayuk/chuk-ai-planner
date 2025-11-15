@@ -22,38 +22,39 @@ if os.path.exists(REGISTRY_DIR):
     shutil.rmtree(REGISTRY_DIR)
 os.makedirs(REGISTRY_DIR)
 
+
 def main():
     # Create a registry
     registry = PlanRegistry(storage_dir=REGISTRY_DIR)
     print(f"Created PlanRegistry in {REGISTRY_DIR}")
-    
+
     # Create a simple plan
     plan = UniversalPlan(
         title="Simple Weather Check Plan",
         description="A plan that checks the weather in New York",
-        tags=["weather", "simple"]
+        tags=["weather", "simple"],
     )
-    
+
     # Add metadata and variables
     plan.add_metadata("creator", "simple_demo")
     plan.set_variable("location", "New York")
-    
+
     # Add a tool step
     step_id = plan.add_tool_step(
         title="Check Weather",
         tool="weather",
         args={"location": "${location}"},
-        result_variable="weather_data"
+        result_variable="weather_data",
     )
-    
+
     # Register the plan
     plan_id = registry.register_plan(plan)
     print(f"Registered plan with ID: {plan_id}")
-    
+
     # Clear memory and get plan from registry
     registry.plans = {}
     retrieved_plan = registry.get_plan(plan_id)
-    
+
     # Display retrieved plan
     print("\nRetrieved Plan:")
     print(f"  Title: {retrieved_plan.title}")
@@ -61,11 +62,11 @@ def main():
     print(f"  Tags: {retrieved_plan.tags}")
     print(f"  Variables: {retrieved_plan.variables}")
     print(f"  Metadata: {retrieved_plan.metadata}")
-    
+
     # Display plan structure
     print("\nPlan Structure:")
     print(retrieved_plan.outline())
-    
+
     # Get plan as dictionary
     plan_dict = retrieved_plan.to_dict()
     print("\nPlan Steps:")
@@ -78,9 +79,10 @@ def main():
         if "result_variable" in step and step["result_variable"]:
             print(f"    Result Variable: {step['result_variable']}")
 
+
 if __name__ == "__main__":
     main()
-    
+
     # Clean up
     print(f"\nCleaning up {REGISTRY_DIR}")
     shutil.rmtree(REGISTRY_DIR)

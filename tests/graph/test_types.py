@@ -5,7 +5,6 @@ Tests for graph type enums.
 Verifies that all enums are properly defined and have expected values.
 """
 
-
 from chuk_ai_planner.graph.types import (
     NodeType,
     EdgeType,

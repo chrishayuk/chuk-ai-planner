@@ -35,6 +35,7 @@ class TestCreateToolCallNode:
 
         # Create a parent node
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test Session")
         graph.add_node(parent)
 
@@ -43,7 +44,7 @@ class TestCreateToolCallNode:
             tool_name="get_weather",
             args={"city": "New York"},
             result=None,  # Ignored
-            assistant_node_id=parent.id
+            assistant_node_id=parent.id,
         )
 
         # Verify tool node created
@@ -67,6 +68,7 @@ class TestCreateToolCallNode:
         manager = GraphNodeManager(graph)
 
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
@@ -77,7 +79,7 @@ class TestCreateToolCallNode:
             result="some result",  # Ignored
             assistant_node_id=parent.id,
             error="some error",  # Ignored
-            is_cached=True  # Ignored
+            is_cached=True,  # Ignored
         )
 
         # Tool node should not have result/error fields
@@ -96,21 +98,17 @@ class TestCreateTaskRunNode:
 
         # Create a tool call node first
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
         tool = manager.create_tool_call_node(
-            tool_name="test_tool",
-            args={},
-            result=None,
-            assistant_node_id=parent.id
+            tool_name="test_tool", args={}, result=None, assistant_node_id=parent.id
         )
 
         # Create successful task run
         task = manager.create_task_run_node(
-            tool_node_id=tool.id,
-            success=True,
-            result={"data": "value"}
+            tool_node_id=tool.id, success=True, result={"data": "value"}
         )
 
         # Verify task node
@@ -138,21 +136,17 @@ class TestCreateTaskRunNode:
         manager = GraphNodeManager(graph)
 
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
         tool = manager.create_tool_call_node(
-            tool_name="test_tool",
-            args={},
-            result=None,
-            assistant_node_id=parent.id
+            tool_name="test_tool", args={}, result=None, assistant_node_id=parent.id
         )
 
         # Create failed task run
         task = manager.create_task_run_node(
-            tool_node_id=tool.id,
-            success=False,
-            error="Tool execution failed"
+            tool_node_id=tool.id, success=False, error="Tool execution failed"
         )
 
         # Verify task node
@@ -166,14 +160,12 @@ class TestCreateTaskRunNode:
         manager = GraphNodeManager(graph)
 
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
         tool = manager.create_tool_call_node(
-            tool_name="test_tool",
-            args={},
-            result=None,
-            assistant_node_id=parent.id
+            tool_name="test_tool", args={}, result=None, assistant_node_id=parent.id
         )
 
         # Create with both
@@ -181,7 +173,7 @@ class TestCreateTaskRunNode:
             tool_node_id=tool.id,
             success=False,  # Failed
             result={"partial": "data"},
-            error="Partial failure"
+            error="Partial failure",
         )
 
         assert task.status == "failure"
@@ -198,13 +190,13 @@ class TestCreateSummaryNode:
         manager = GraphNodeManager(graph)
 
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
         # Create summary
         summary = manager.create_summary_node(
-            content="This is a test summary",
-            parent_node_id=parent.id
+            content="This is a test summary", parent_node_id=parent.id
         )
 
         # Verify summary node
@@ -229,13 +221,14 @@ class TestCreateSummaryNode:
         manager = GraphNodeManager(graph)
 
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
         summary = manager.create_summary_node(
             content="Long summary content here",
             parent_node_id=parent.id,
-            title="Custom Title"
+            title="Custom Title",
         )
 
         assert summary.title == "Custom Title"
@@ -247,6 +240,7 @@ class TestCreateSummaryNode:
         manager = GraphNodeManager(graph)
 
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
@@ -255,7 +249,7 @@ class TestCreateSummaryNode:
             summary = manager.create_summary_node(
                 content=f"Test {summary_type}",
                 parent_node_id=parent.id,
-                summary_type=summary_type
+                summary_type=summary_type,
             )
             assert summary.summary_type == summary_type
 
@@ -265,13 +259,13 @@ class TestCreateSummaryNode:
         manager = GraphNodeManager(graph)
 
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
         long_content = "A" * 100  # 100 characters
         summary = manager.create_summary_node(
-            content=long_content,
-            parent_node_id=parent.id
+            content=long_content, parent_node_id=parent.id
         )
 
         # Title should be first 50 chars
@@ -288,6 +282,7 @@ class TestIntegration:
         manager = GraphNodeManager(graph)
 
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
@@ -296,14 +291,12 @@ class TestIntegration:
             tool_name="get_data",
             args={"param": "value"},
             result=None,
-            assistant_node_id=parent.id
+            assistant_node_id=parent.id,
         )
 
         # Create task run for the tool
         task = manager.create_task_run_node(
-            tool_node_id=tool.id,
-            success=True,
-            result={"data": "retrieved"}
+            tool_node_id=tool.id, success=True, result={"data": "retrieved"}
         )
 
         # Verify graph structure
@@ -321,6 +314,7 @@ class TestIntegration:
         manager = GraphNodeManager(graph)
 
         from chuk_ai_planner.graph import SessionNode
+
         parent = SessionNode(name="Test")
         graph.add_node(parent)
 
@@ -328,19 +322,17 @@ class TestIntegration:
         summary1 = manager.create_summary_node(
             content="First checkpoint",
             parent_node_id=parent.id,
-            summary_type="checkpoint"
+            summary_type="checkpoint",
         )
 
         summary2 = manager.create_summary_node(
             content="Second checkpoint",
             parent_node_id=parent.id,
-            summary_type="checkpoint"
+            summary_type="checkpoint",
         )
 
         summary3 = manager.create_summary_node(
-            content="Completion",
-            parent_node_id=parent.id,
-            summary_type="completion"
+            content="Completion", parent_node_id=parent.id, summary_type="completion"
         )
 
         # All should be children of parent

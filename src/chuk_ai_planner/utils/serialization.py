@@ -16,12 +16,12 @@ __all__ = ["unfreeze_data", "serialize_node_data", "serialize_tool_args"]
 def unfreeze_data(obj: Any) -> Any:
     """
     Recursively convert frozen structures to regular Python types for JSON serialization.
-    
+
     Parameters
     ----------
     obj : Any
         The object to unfreeze
-        
+
     Returns
     -------
     Any
@@ -42,12 +42,12 @@ def unfreeze_data(obj: Any) -> Any:
 def serialize_node_data(data: Any) -> str:
     """
     Serialize node data to JSON string, handling frozen structures.
-    
+
     Parameters
     ----------
     data : Any
         The data to serialize
-        
+
     Returns
     -------
     str
@@ -60,14 +60,14 @@ def serialize_node_data(data: Any) -> str:
 def serialize_tool_args(args: Any) -> str:
     """
     Serialize tool arguments to JSON string, handling frozen structures.
-    
+
     This is specifically for tool call arguments that need to be JSON serialized.
-    
+
     Parameters
     ----------
     args : Any
         The arguments to serialize
-        
+
     Returns
     -------
     str

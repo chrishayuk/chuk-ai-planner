@@ -35,16 +35,13 @@ def main():
     plan = PlanNode(
         title="Quality-Based Publishing",
         description="Route content based on quality score",
-        variables={"quality_threshold": 0.7}
+        variables={"quality_threshold": 0.7},
     )
     graph.add_node(plan)
     print(f"\n✅ Created Plan: {plan.title}")
 
     # 2. Create analysis step
-    analyze_step = PlanStep(
-        description="Analyze content quality",
-        index="1"
-    )
+    analyze_step = PlanStep(description="Analyze content quality", index="1")
     graph.add_node(analyze_step)
     graph.add_edge(ParentChildEdge(src=plan.id, dst=analyze_step.id))
     print(f"✅ Created Step 1: {analyze_step.description}")
@@ -56,9 +53,9 @@ def main():
         condition="${quality_score} > 0.7",  # Expression with variable
         routes=["high_quality", "low_quality"],
         route_mapping={
-            True: "high_quality",   # If condition is true
-            False: "low_quality"    # If condition is false
-        }
+            True: "high_quality",  # If condition is true
+            False: "low_quality",  # If condition is false
+        },
     )
     graph.add_node(router)
     graph.add_edge(ParentChildEdge(src=plan.id, dst=router.id))
@@ -69,40 +66,35 @@ def main():
     print(f"   Routes: {router.routes}")
 
     # 4. Create High Quality Path
-    publish_step = PlanStep(
-        description="Publish immediately",
-        index="2a"
-    )
+    publish_step = PlanStep(description="Publish immediately", index="2a")
     graph.add_node(publish_step)
 
     # Create RouteEdge with typed fields
-    graph.add_edge(RouteEdge(
-        src=router.id,
-        dst=publish_step.id,
-        route_key="high_quality"  # Matches route name
-    ))
+    graph.add_edge(
+        RouteEdge(
+            src=router.id,
+            dst=publish_step.id,
+            route_key="high_quality",  # Matches route name
+        )
+    )
     print(f"\n✅ High Quality Route → {publish_step.description}")
 
     # 5. Create Low Quality Path
-    revise_step = PlanStep(
-        description="Send for revision",
-        index="2b"
-    )
+    revise_step = PlanStep(description="Send for revision", index="2b")
     graph.add_node(revise_step)
 
-    graph.add_edge(RouteEdge(
-        src=router.id,
-        dst=revise_step.id,
-        route_key="low_quality",
-        is_default=True  # Typed boolean field
-    ))
+    graph.add_edge(
+        RouteEdge(
+            src=router.id,
+            dst=revise_step.id,
+            route_key="low_quality",
+            is_default=True,  # Typed boolean field
+        )
+    )
     print(f"✅ Low Quality Route (default) → {revise_step.description}")
 
     # 6. Add follow-up step after revision
-    reanalyze_step = PlanStep(
-        description="Re-analyze revised content",
-        index="3"
-    )
+    reanalyze_step = PlanStep(description="Re-analyze revised content", index="3")
     graph.add_node(reanalyze_step)
     graph.add_edge(StepEdge(src=revise_step.id, dst=reanalyze_step.id))
     print(f"✅ Follow-up: {reanalyze_step.description}")
@@ -143,7 +135,7 @@ def main():
         router_type=RouterType.LLM,  # Enum!
         description="LLM decides the route",
         routes=["approve", "reject"],
-        llm_prompt="Analyze this content and decide if it should be approved or rejected."
+        llm_prompt="Analyze this content and decide if it should be approved or rejected.",
     )
     print("\n🤖 LLM Router:")
     print(f"   Type: {llm_router.router_type}")
@@ -154,7 +146,7 @@ def main():
         router_type=RouterType.FUNCTION,  # Enum!
         description="Custom function routing",
         routes=["urgent", "normal"],
-        router_function="calculate_priority"
+        router_function="calculate_priority",
     )
     print("\n⚡ Function Router:")
     print(f"   Type: {function_router.router_type}")

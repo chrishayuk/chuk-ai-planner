@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import Iterator, List, Sequence
 
 
-def _uid() -> str:               # helper for UUID strings
+def _uid() -> str:  # helper for UUID strings
     return str(uuid.uuid4())
 
 
@@ -33,13 +33,13 @@ class _Step:
 
     # ── user-supplied fields ──────────────────────────────────────
     title: str
-    after: List[str]               = field(default_factory=list)
+    after: List[str] = field(default_factory=list)
 
     # ── generated fields ─────────────────────────────────────────
-    id: str                        = field(default_factory=_uid, init=False)
-    parent: _Step | None           = field(default=None,    init=False)
-    index: str                     = field(default="",      init=False)
-    children: List["_Step"]        = field(default_factory=list, init=False)
+    id: str = field(default_factory=_uid, init=False)
+    parent: _Step | None = field(default=None, init=False)
+    index: str = field(default="", init=False)
+    children: List["_Step"] = field(default_factory=list, init=False)
 
     # ---------------------------------------------------------------- builder helpers
     def step(self, title: str, *, after: Sequence[str] = ()) -> "_Step":

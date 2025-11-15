@@ -8,7 +8,4 @@ This module provides interfaces and implementations for storing graph nodes and 
 from .base import GraphStore
 from .memory import InMemoryGraphStore
 
-__all__ = [
-    "GraphStore",
-    "InMemoryGraphStore"
-]
+__all__ = ["GraphStore", "InMemoryGraphStore"]

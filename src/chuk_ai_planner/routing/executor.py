@@ -180,9 +180,9 @@ class RoutingExecutor:
 
         for edge in route_edges:
             # Type-safe field access on RouteEdge!
-            if hasattr(edge, 'route_key'):
+            if hasattr(edge, "route_key"):
                 route_key = edge.route_key
-                is_default = getattr(edge, 'is_default', False)
+                is_default = getattr(edge, "is_default", False)
             else:
                 # Fallback for old-style edges (shouldn't happen with pure Pydantic)
                 continue
@@ -209,10 +209,12 @@ class RoutingExecutor:
         # Build decision
         all_routes = []
         for e in route_edges:
-            if hasattr(e, 'route_key'):
+            if hasattr(e, "route_key"):
                 all_routes.append(e.route_key)
 
-        chosen_route_key = chosen_edge.route_key if hasattr(chosen_edge, 'route_key') else ""
+        chosen_route_key = (
+            chosen_edge.route_key if hasattr(chosen_edge, "route_key") else ""
+        )
         skipped_routes = [r for r in all_routes if r != chosen_route_key]
 
         return RoutingDecision(
@@ -254,13 +256,11 @@ class RoutingExecutor:
 
         # Get available routes
         route_edges = await self._get_route_edges(router_step.id)
-        available_routes = [
-            e.route_key for e in route_edges if hasattr(e, 'route_key')
-        ]
+        available_routes = [e.route_key for e in route_edges if hasattr(e, "route_key")]
 
         # Build LLM prompt
         system_prompt = f"""You are a routing decision maker.
-Given the context, choose one of these routes: {', '.join(available_routes)}
+Given the context, choose one of these routes: {", ".join(available_routes)}
 
 Respond with ONLY the route key, nothing else."""
 
@@ -269,7 +269,7 @@ Respond with ONLY the route key, nothing else."""
 
 Question: {llm_prompt}
 
-Available routes: {', '.join(available_routes)}
+Available routes: {", ".join(available_routes)}
 
 Your choice:"""
 
@@ -282,7 +282,7 @@ Your choice:"""
         # Find matching edge
         chosen_edge = None
         for edge in route_edges:
-            if not hasattr(edge, 'route_key'):
+            if not hasattr(edge, "route_key"):
                 continue
             route_key = str(edge.route_key).lower()
             if route_key == chosen_route_key or chosen_route_key in route_key:
@@ -292,7 +292,7 @@ Your choice:"""
         # Fallback to default if no match
         if not chosen_edge:
             for edge in route_edges:
-                if hasattr(edge, 'is_default') and edge.is_default:
+                if hasattr(edge, "is_default") and edge.is_default:
                     chosen_edge = edge
                     break
 
@@ -304,10 +304,13 @@ Your choice:"""
                 raise ValueError(f"No routes available for router {router_step.id}")
 
         # Build decision
-        final_route_key = chosen_edge.route_key if hasattr(chosen_edge, 'route_key') else ""
+        final_route_key = (
+            chosen_edge.route_key if hasattr(chosen_edge, "route_key") else ""
+        )
         skipped_routes = [
-            e.route_key for e in route_edges
-            if hasattr(e, 'route_key') and e != chosen_edge
+            e.route_key
+            for e in route_edges
+            if hasattr(e, "route_key") and e != chosen_edge
         ]
 
         return RoutingDecision(
@@ -372,7 +375,7 @@ Your choice:"""
         # Find edge matching the result
         chosen_edge = None
         for edge in route_edges:
-            if not hasattr(edge, 'route_key'):
+            if not hasattr(edge, "route_key"):
                 continue
             route_key = edge.route_key
             if str(route_key) == str(result):
@@ -382,7 +385,7 @@ Your choice:"""
         if not chosen_edge:
             # Try default
             for edge in route_edges:
-                if hasattr(edge, 'is_default') and edge.is_default:
+                if hasattr(edge, "is_default") and edge.is_default:
                     chosen_edge = edge
                     break
 
@@ -392,10 +395,13 @@ Your choice:"""
             )
 
         # Build decision
-        final_route_key = chosen_edge.route_key if hasattr(chosen_edge, 'route_key') else ""
+        final_route_key = (
+            chosen_edge.route_key if hasattr(chosen_edge, "route_key") else ""
+        )
         skipped_routes = [
-            e.route_key for e in route_edges
-            if hasattr(e, 'route_key') and e != chosen_edge
+            e.route_key
+            for e in route_edges
+            if hasattr(e, "route_key") and e != chosen_edge
         ]
 
         return RoutingDecision(
@@ -443,13 +449,13 @@ Your choice:"""
             Expression with variables resolved
         """
         # Find all ${...} patterns
-        pattern = r'\$\{([^}]+)\}'
+        pattern = r"\$\{([^}]+)\}"
 
         def replace_var(match):
             var_path = match.group(1).strip()
 
             # Handle nested access like ${result.quality_score}
-            parts = var_path.split('.')
+            parts = var_path.split(".")
             value = context
 
             for part in parts:
@@ -489,14 +495,14 @@ Your choice:"""
         """
         try:
             # Parse the expression
-            tree = ast.parse(expression, mode='eval')
+            tree = ast.parse(expression, mode="eval")
 
             # Evaluate using safe eval
             # This allows comparisons, arithmetic, but no function calls
             result = eval(
-                compile(tree, '<string>', 'eval'),
+                compile(tree, "<string>", "eval"),
                 {"__builtins__": {}},  # No built-ins
-                {}  # No additional context
+                {},  # No additional context
             )
 
             return result

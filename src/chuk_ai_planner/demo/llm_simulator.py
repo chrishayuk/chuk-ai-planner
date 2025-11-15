@@ -10,25 +10,26 @@ import asyncio
 import json
 from typing import Dict, Any
 
+
 async def simulate_llm_call(prompt: str) -> Dict[str, Any]:
     """
     Simulate an LLM call with responses based on prompt content.
-    
+
     Parameters
     ----------
     prompt : str
         The prompt text to analyze
-        
+
     Returns
     -------
     Dict[str, Any]
         Simulated LLM response with content and tool_calls
     """
     print(f"🤖 LLM prompted with: {prompt[:50]}...")
-    
+
     # Simulate LLM thinking
     await asyncio.sleep(0.5)
-    
+
     # For demo purposes, return a response based on keywords in the prompt
     if "weather" in prompt.lower():
         return {
@@ -39,10 +40,10 @@ async def simulate_llm_call(prompt: str) -> Dict[str, Any]:
                     "type": "function",
                     "function": {
                         "name": "weather",
-                        "arguments": json.dumps({"location": "New York"})
-                    }
+                        "arguments": json.dumps({"location": "New York"}),
+                    },
                 }
-            ]
+            ],
         }
     elif any(x in prompt.lower() for x in ["calculate", "math", "multiply"]):
         return {
@@ -53,14 +54,12 @@ async def simulate_llm_call(prompt: str) -> Dict[str, Any]:
                     "type": "function",
                     "function": {
                         "name": "calculator",
-                        "arguments": json.dumps({
-                            "operation": "multiply", 
-                            "a": 235.5, 
-                            "b": 18.75
-                        })
-                    }
+                        "arguments": json.dumps(
+                            {"operation": "multiply", "a": 235.5, "b": 18.75}
+                        ),
+                    },
                 }
-            ]
+            ],
         }
     elif "search" in prompt.lower():
         return {
@@ -71,12 +70,10 @@ async def simulate_llm_call(prompt: str) -> Dict[str, Any]:
                     "type": "function",
                     "function": {
                         "name": "search",
-                        "arguments": json.dumps({
-                            "query": "climate change adaptation"
-                        })
-                    }
+                        "arguments": json.dumps({"query": "climate change adaptation"}),
+                    },
                 }
-            ]
+            ],
         }
     else:
         # Default response with multiple tool calls
@@ -88,20 +85,18 @@ async def simulate_llm_call(prompt: str) -> Dict[str, Any]:
                     "type": "function",
                     "function": {
                         "name": "weather",
-                        "arguments": json.dumps({"location": "New York"})
-                    }
+                        "arguments": json.dumps({"location": "New York"}),
+                    },
                 },
                 {
                     "id": "call_calc",
                     "type": "function",
                     "function": {
                         "name": "calculator",
-                        "arguments": json.dumps({
-                            "operation": "multiply", 
-                            "a": 235.5, 
-                            "b": 18.75
-                        })
-                    }
-                }
-            ]
+                        "arguments": json.dumps(
+                            {"operation": "multiply", "a": 235.5, "b": 18.75}
+                        ),
+                    },
+                },
+            ],
         }

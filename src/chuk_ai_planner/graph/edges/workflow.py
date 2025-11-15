@@ -64,7 +64,9 @@ class FallbackEdge(GraphEdge):
     kind: Literal[EdgeType.FALLBACK] = EdgeType.FALLBACK
 
     # Fallback conditions
-    trigger_on: List[str] = Field(default_factory=lambda: ["error"])  # Conditions that trigger fallback
+    trigger_on: List[str] = Field(
+        default_factory=lambda: ["error"]
+    )  # Conditions that trigger fallback
     priority: int = 0  # Priority for multiple fallbacks (higher = higher priority)
     max_cost_exceeded: bool = False  # Trigger if cost budget exceeded
 

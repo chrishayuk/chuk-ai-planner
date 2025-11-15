@@ -34,28 +34,20 @@ def main():
 
     # 1. Create a Plan
     plan = PlanNode(
-        title="Data Processing Pipeline",
-        description="Fetch, process, and analyze data"
+        title="Data Processing Pipeline", description="Fetch, process, and analyze data"
     )
     graph.add_node(plan)
     print(f"\n✅ Created Plan: {plan.title}")
 
     # 2. Create Step 1: Fetch Data
-    fetch_step = PlanStep(
-        description="Fetch data from API",
-        index="1"
-    )
+    fetch_step = PlanStep(description="Fetch data from API", index="1")
     graph.add_node(fetch_step)
     graph.add_edge(ParentChildEdge(src=plan.id, dst=fetch_step.id))
 
     # 3. Create Tool Call for fetching (typed fields!)
     fetch_tool = ToolCall(
         name="fetch_api_data",
-        args={
-            "url": "https://api.example.com/data",
-            "method": "GET",
-            "timeout": 30
-        }
+        args={"url": "https://api.example.com/data", "method": "GET", "timeout": 30},
     )
     graph.add_node(fetch_tool)
 
@@ -69,12 +61,9 @@ def main():
     fetch_result = TaskRun(
         tool_call_id=fetch_tool.id,
         status="success",  # One of: success, failure, running, pending
-        result={
-            "data": [1, 2, 3, 4, 5],
-            "count": 5
-        },
+        result={"data": [1, 2, 3, 4, 5], "count": 5},
         started_at=datetime.now(timezone.utc),
-        completed_at=datetime.now(timezone.utc)
+        completed_at=datetime.now(timezone.utc),
     )
     graph.add_node(fetch_result)
     graph.add_edge(ParentChildEdge(src=fetch_tool.id, dst=fetch_result.id))
@@ -82,10 +71,7 @@ def main():
     print(f"   Result Data: {fetch_result.result}")
 
     # 5. Create Step 2: Process Data
-    process_step = PlanStep(
-        description="Process fetched data",
-        index="2"
-    )
+    process_step = PlanStep(description="Process fetched data", index="2")
     graph.add_node(process_step)
     graph.add_edge(ParentChildEdge(src=plan.id, dst=process_step.id))
 
@@ -94,8 +80,8 @@ def main():
         name="transform_data",
         args={
             "input_data": "${fetch_result}",  # Reference to previous result
-            "transformation": "normalize"
-        }
+            "transformation": "normalize",
+        },
     )
     graph.add_node(process_tool)
     graph.add_edge(PlanLinkEdge(src=process_step.id, dst=process_tool.id))
@@ -103,15 +89,14 @@ def main():
     print(f"   Tool: {process_tool.name}")
 
     # 6. Create Step 3: Analyze with multiple tools
-    analyze_step = PlanStep(
-        description="Analyze processed data",
-        index="3"
-    )
+    analyze_step = PlanStep(description="Analyze processed data", index="3")
     graph.add_node(analyze_step)
     graph.add_edge(ParentChildEdge(src=plan.id, dst=analyze_step.id))
 
     # Multiple tools for one step
-    stats_tool = ToolCall(name="calculate_statistics", args={"data": "${processed_data}"})
+    stats_tool = ToolCall(
+        name="calculate_statistics", args={"data": "${processed_data}"}
+    )
     plot_tool = ToolCall(name="generate_plot", args={"data": "${processed_data}"})
 
     graph.add_node(stats_tool)
@@ -180,4 +165,5 @@ def main():
 
 if __name__ == "__main__":
     from chuk_ai_planner.graph.types import EdgeType  # For query
+
     main()

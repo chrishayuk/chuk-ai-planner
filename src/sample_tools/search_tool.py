@@ -63,7 +63,7 @@ class SearchTool(ValidatedTool):
             hits.append(
                 {
                     "title": a_title.get_text(" ", strip=True),
-                    "url":   "https://" + href.lstrip("/"),
+                    "url": "https://" + href.lstrip("/"),
                     "snippet": snippet.get_text(" ", strip=True),
                 }
             )

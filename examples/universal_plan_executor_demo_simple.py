@@ -24,21 +24,23 @@ async def batch_weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     """Get weather data for multiple locations."""
     locations = args.get("locations", [])
     print(f"📍 Getting weather for {len(locations)} locations")
-    
+
     # Sample weather data
     weather_data = {
         "New York": {"temperature": 72, "conditions": "Partly cloudy", "humidity": 65},
-        "London":   {"temperature": 62, "conditions": "Rainy",          "humidity": 80},
-        "Tokyo":    {"temperature": 78, "conditions": "Sunny",          "humidity": 70},
-        "Sydney":   {"temperature": 68, "conditions": "Clear",          "humidity": 60},
-        "Cairo":    {"temperature": 90, "conditions": "Hot",            "humidity": 30},
+        "London": {"temperature": 62, "conditions": "Rainy", "humidity": 80},
+        "Tokyo": {"temperature": 78, "conditions": "Sunny", "humidity": 70},
+        "Sydney": {"temperature": 68, "conditions": "Clear", "humidity": 60},
+        "Cairo": {"temperature": 90, "conditions": "Hot", "humidity": 30},
     }
-    
+
     # Get weather for each location
     results = {}
     for loc in locations:
-        results[loc] = weather_data.get(loc, {"temperature": 75, "conditions": "Unknown", "humidity": 50})
-    
+        results[loc] = weather_data.get(
+            loc, {"temperature": 75, "conditions": "Unknown", "humidity": 50}
+        )
+
     return {"results": results}
 
 
@@ -46,38 +48,40 @@ def analyze_weather_function(**kwargs) -> Dict[str, Any]:
     """Analyze weather data to extract statistics."""
     weather_data = kwargs.get("weather_data", {})
     print("📊 Analyzing weather data...")
-    
+
     # Extract results from the weather data
     results = weather_data.get("results", weather_data)
-    
+
     if not results:
         return {
             "average_temperature": 0,
             "average_humidity": 0,
             "most_common_condition": "Unknown",
             "condition_distribution": {},
-            "locations_analyzed": 0
+            "locations_analyzed": 0,
         }
-    
+
     # Extract data and calculate statistics
     temperatures = []
     humidities = []
     conditions = {}
-    
+
     for location, data in results.items():
         if isinstance(data, dict):
             temperatures.append(data.get("temperature", 0))
             humidities.append(data.get("humidity", 0))
             condition = data.get("conditions", "Unknown")
             conditions[condition] = conditions.get(condition, 0) + 1
-    
+
     # Calculate averages
     avg_temp = sum(temperatures) / len(temperatures) if temperatures else 0
     avg_humidity = sum(humidities) / len(humidities) if humidities else 0
-    
+
     # Find most common condition
-    most_common = max(conditions.items(), key=lambda x: x[1])[0] if conditions else "Unknown"
-    
+    most_common = (
+        max(conditions.items(), key=lambda x: x[1])[0] if conditions else "Unknown"
+    )
+
     return {
         "average_temperature": round(avg_temp, 1),
         "average_humidity": round(avg_humidity, 1),
@@ -91,7 +95,7 @@ def create_report_function(**kwargs) -> Dict[str, Any]:
     """Create a report from analysis data."""
     analysis = kwargs.get("analysis", {})
     print("📝 Generating weather report...")
-    
+
     return {
         "title": "Global Weather Analysis Report",
         "summary": (
@@ -109,24 +113,26 @@ def format_visualization_function(**kwargs) -> Dict[str, Any]:
     weather_data = kwargs.get("weather_data", {})
     analysis = kwargs.get("analysis", {})
     print("🎨 Formatting visualization data...")
-    
+
     # Extract results safely
     results = weather_data.get("results", weather_data)
-    
+
     # Create temperature data for visualization
     temps = []
     for location, data in results.items():
         if isinstance(data, dict):
-            temps.append({"location": location, "temperature": data.get("temperature", 0)})
-    
+            temps.append(
+                {"location": location, "temperature": data.get("temperature", 0)}
+            )
+
     # Sort by temperature
     temps.sort(key=lambda x: x["temperature"], reverse=True)
-    
+
     # Create condition data for visualization
     conds = []
     for condition, count in analysis.get("condition_distribution", {}).items():
         conds.append({"condition": condition, "count": count})
-    
+
     return {
         "title": "Global Weather Visualization",
         "temperature_data": temps,
@@ -140,48 +146,48 @@ def create_weather_analysis_plan() -> UniversalPlan:
     plan = UniversalPlan(
         title="Global Weather Analysis",
         description="Analyse weather for multiple cities",
-        tags=["weather", "analysis", "demo"]
+        tags=["weather", "analysis", "demo"],
     )
-    
+
     # Define the target cities
     target_cities = ["New York", "London", "Tokyo", "Sydney", "Cairo"]
     plan.set_variable("target_cities", target_cities)
-    
+
     # Step 1: Collect weather data
     collect_step = plan.add_tool_step(
         title="Collect Weather Data",
         tool="batch_weather",
         args={"locations": target_cities},
-        result_variable="weather_data"
+        result_variable="weather_data",
     )
-    
+
     # Step 2: Analyze the data
     analyze_step = plan.add_function_step(
         title="Analyze Weather Data",
         function="analyze_weather",
         args={"weather_data": "${weather_data}"},
         result_variable="analysis",
-        depends_on=[collect_step]
+        depends_on=[collect_step],
     )
-    
+
     # Step 3: Generate report
     report_step = plan.add_function_step(
         title="Generate Weather Report",
         function="create_report",
         args={"analysis": "${analysis}"},
         result_variable="report",
-        depends_on=[analyze_step]
+        depends_on=[analyze_step],
     )
-    
+
     # Step 4: Format visualization data (parallel with report)
     viz_step = plan.add_function_step(
         title="Format Visualization Data",
-        function="format_visualization", 
+        function="format_visualization",
         args={"weather_data": "${weather_data}", "analysis": "${analysis}"},
         result_variable="viz",
-        depends_on=[analyze_step]  # Can run in parallel with report
+        depends_on=[analyze_step],  # Can run in parallel with report
     )
-    
+
     return plan
 
 
@@ -192,7 +198,7 @@ async def main():
 
     # Create the executor (uses the robust framework implementation)
     executor = UniversalExecutor()
-    
+
     # Register our custom tools and functions
     executor.register_tool("batch_weather", batch_weather_tool)
     executor.register_function("analyze_weather", analyze_weather_function)
@@ -201,16 +207,16 @@ async def main():
 
     # Create the weather analysis plan
     plan = create_weather_analysis_plan()
-    
+
     print(f"\n📋 Created plan: {plan.title}")
     print(f"📋 Plan ID: {plan.id}")
     print(f"📋 Target cities: {plan.variables['target_cities']}")
-    
+
     print("\n📋 Plan structure:")
     print(plan.outline())
 
     print("\n▶️ Executing plan...")
-    
+
     # Execute the plan
     result = await executor.execute_plan(plan)
 
@@ -262,7 +268,7 @@ async def main():
                 except (TypeError, ValueError):
                     # Convert to string if not serializable
                     serializable_data[key] = str(value)
-            
+
             json.dump(serializable_data, fp, indent=2)
         print(f"\n💾 Results saved to {output_file}")
     except Exception as e:

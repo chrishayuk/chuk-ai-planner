@@ -62,7 +62,7 @@ class UniversalExecutor:
             self.session = Session()
             store = SessionStoreProvider.get_store()
             await store.save(self.session)
-            
+
             # Now initialize the processor
             self.processor = GraphAwareToolProcessor(
                 self.session.id,
@@ -70,7 +70,7 @@ class UniversalExecutor:
                 enable_caching=True,
                 enable_retries=True,
             )
-            
+
             self._session_initialized = True
 
     # ----------------------------------------------------------- registry
@@ -86,11 +86,11 @@ class UniversalExecutor:
         """Register tools with processor after it's initialized"""
         if self.processor is None:
             await self._ensure_session()
-        
+
         # Register all tools
         for name, fn in self.tool_registry.items():
             self.processor.register_tool(name, fn)
-        
+
         # Register function wrapper
         async def wrapper(args: Dict[str, Any]):
             fn_name = args.get("function")
@@ -117,7 +117,7 @@ class UniversalExecutor:
             # If not available, create a dummy class that will never match
             class _ReadOnlyList:
                 pass
-        
+
         if isinstance(data, MappingProxyType):
             # Convert MappingProxyType to regular dict
             return {k: self._get_json_serializable_data(v) for k, v in data.items()}
@@ -134,7 +134,11 @@ class UniversalExecutor:
         elif isinstance(data, frozenset):
             # Convert frozensets to lists for JSON compatibility
             return [self._get_json_serializable_data(item) for item in data]
-        elif hasattr(data, '__iter__') and hasattr(data, '__getitem__') and hasattr(data, '__len__'):
+        elif (
+            hasattr(data, "__iter__")
+            and hasattr(data, "__getitem__")
+            and hasattr(data, "__len__")
+        ):
             # This catches other list-like objects, but we need to be careful not to catch strings or dicts
             if isinstance(data, (str, bytes, dict)):
                 # These are iterable but should not be converted to lists
@@ -159,30 +163,34 @@ class UniversalExecutor:
         # Handle string variable references and template strings
         if isinstance(value, str):
             # Check if the entire string is a single variable reference
-            if value.startswith("${") and value.endswith("}") and value.count("${") == 1:
+            if (
+                value.startswith("${")
+                and value.endswith("}")
+                and value.count("${") == 1
+            ):
                 var_path = value[2:-1]  # Remove ${ and }
                 return self._resolve_nested_variable(var_path, variables)
-            
+
             # Check if string contains variable references (template string)
             elif "${" in value:
                 return self._resolve_template_string(value, variables)
-            
+
             # Regular string with no variables
             return value
-        
+
         # Handle dictionaries (both regular and MappingProxyType)
         elif isinstance(value, (dict, MappingProxyType)):
             # Convert to regular dict and recursively resolve
             return {k: self._resolve_vars(v, variables) for k, v in value.items()}
-        
+
         # Handle lists and tuples (including _ReadOnlyList)
         elif isinstance(value, (list, tuple)):
             return [self._resolve_vars(item, variables) for item in value]
-        
+
         # Handle other iterable types carefully
-        elif hasattr(value, '__iter__') and not isinstance(value, (str, bytes)):
+        elif hasattr(value, "__iter__") and not isinstance(value, (str, bytes)):
             # Check if it's a string-like object to avoid infinite recursion
-            if hasattr(value, 'replace') or hasattr(value, 'split'):
+            if hasattr(value, "replace") or hasattr(value, "split"):
                 return value  # It's a string-like object, return as-is
             else:
                 try:
@@ -191,51 +199,61 @@ class UniversalExecutor:
                 except (TypeError, AttributeError):
                     # If iteration fails, return as-is
                     return value
-        
+
         # Any other type (int, float, bool, None, etc.)
         else:
             return value
-    
+
     def _resolve_template_string(self, template: str, variables: Dict[str, Any]) -> str:
         """
         ENHANCED: Resolve template strings containing multiple variable references.
         Example: "https://${api.endpoint}:${api.port}/users/${user.id}"
         """
-        
+
         def replace_var(match):
             var_path = match.group(1)  # Extract content between ${ and }
             resolved = self._resolve_nested_variable(var_path, variables)
-            
+
             # If resolution failed (returns original ${...}), keep as-is
-            if isinstance(resolved, str) and resolved.startswith("${") and resolved.endswith("}"):
+            if (
+                isinstance(resolved, str)
+                and resolved.startswith("${")
+                and resolved.endswith("}")
+            ):
                 return resolved
-            
+
             # Convert resolved value to string for template interpolation
             return str(resolved)
-        
+
         # Find all ${...} patterns and replace them
-        pattern = r'\$\{([^}]+)\}'
+        pattern = r"\$\{([^}]+)\}"
         result = re.sub(pattern, replace_var, template)
         return result
-    
+
     def _resolve_nested_variable(self, var_path: str, variables: Dict[str, Any]) -> Any:
         """
         ENHANCED: Resolve nested variable access like 'variable.field.subfield'.
         """
-        parts = var_path.split('.')
+        parts = var_path.split(".")
         current = variables
-        
+
         for i, part in enumerate(parts):
             if isinstance(current, dict) and part in current:
                 current = current[part]
             else:
                 # Variable or field not found
-                print(f"🔍 Variable resolution: '{part}' not found in {'.'.join(parts[:i]) or 'variables'}")
-                print(f"🔍 Available keys: {list(current.keys()) if isinstance(current, dict) else 'not a dict'}")
-                return f"${{{var_path}}}"  # Return original variable string if not found
-        
+                print(
+                    f"🔍 Variable resolution: '{part}' not found in {'.'.join(parts[:i]) or 'variables'}"
+                )
+                print(
+                    f"🔍 Available keys: {list(current.keys()) if isinstance(current, dict) else 'not a dict'}"
+                )
+                return (
+                    f"${{{var_path}}}"  # Return original variable string if not found
+                )
+
         return current
-    
+
     def _extract_value(self, obj: Any) -> Any:
         """Return a plain payload regardless of how deeply it's wrapped."""
         # --- 0. None ------------------------------------------------------
@@ -283,7 +301,7 @@ class UniversalExecutor:
         # Look for custom edges from step to tool with result_variable type
         for edge in self.graph_store.get_edges(src=step_id, kind=EdgeType.CUSTOM):
             # Check if edge has custom_type field (typed CustomEdge)
-            if hasattr(edge, 'custom_type') and edge.custom_type == "result_variable":
+            if hasattr(edge, "custom_type") and edge.custom_type == "result_variable":
                 if tool_id is None or edge.dst == tool_id:
                     # Variable name is in metadata
                     metadata = edge.metadata or {}
@@ -292,41 +310,43 @@ class UniversalExecutor:
         return None
 
     # ----------------------------------------------------------- topological sort
-    def _topological_sort(self, steps: List[Any], dependencies: Dict[str, Set[str]]) -> List[Any]:
+    def _topological_sort(
+        self, steps: List[Any], dependencies: Dict[str, Set[str]]
+    ) -> List[Any]:
         """Sort steps based on dependencies using topological sort."""
         # Create a mapping from step ID to step object
         id_to_step = {step.id: step for step in steps}
-        
+
         # Track visited and temp markers for cycle detection
         visited = set()
         temp_mark = set()
-        
+
         # Result list
         sorted_steps = []
-        
+
         def visit(step_id):
             if step_id in temp_mark:
                 raise ValueError(f"Dependency cycle detected involving step {step_id}")
-            
+
             if step_id not in visited:
                 temp_mark.add(step_id)
-                
+
                 # Visit dependencies
                 for dep_id in dependencies.get(step_id, set()):
                     visit(dep_id)
-                
+
                 temp_mark.remove(step_id)
                 visited.add(step_id)
-                
+
                 # Add to result
                 if step_id in id_to_step:
                     sorted_steps.append(id_to_step[step_id])
-        
+
         # Visit all steps
         for step in steps:
             if step.id not in visited:
                 visit(step.id)
-        
+
         return sorted_steps
 
     # ----------------------------------------------------------- FIXED: execute single step with deduplication
@@ -351,58 +371,61 @@ class UniversalExecutor:
 
         # Find tool calls for this step
         results = []
-        
+
         # FIXED: Deduplicate tool calls by tracking executed tool call IDs
         executed_tool_calls = context.get("executed_tool_calls", set())
-        
+
         for edge in self.graph_store.get_edges(src=step_id, kind=EdgeType.PLAN_LINK):
             tool_node = self.graph_store.get_node(edge.dst)
             if tool_node and tool_node.kind.value == "tool_call":
-                
                 # FIXED: Skip if this tool call was already executed
                 if tool_node.id in executed_tool_calls:
                     print(f"🔍 Tool call {tool_node.id[:8]} already executed, skipping")
                     continue
-                
+
                 executed_tool_calls.add(tool_node.id)
                 context["executed_tool_calls"] = executed_tool_calls
-                
+
                 # Get tool info
                 tool_name = tool_node.name
                 args = tool_node.args
-                
+
                 # FIXED: Find result variable using the new method
                 result_variable = self._find_result_variable(step_id, tool_node.id)
-                
+
                 # ENHANCED: Resolve variables in args with nested field support
                 resolved_args = self._resolve_vars(args, context["variables"])
-                
+
                 # Convert to JSON-serializable format - PRESERVE DICT STRUCTURE
                 json_safe_args = self._get_json_serializable_data(resolved_args)
-                
+
                 # Ensure we still have a dict for tool execution
                 if not isinstance(json_safe_args, dict):
-                    raise ValueError(f"Tool args must be a dictionary, got {type(json_safe_args)}: {json_safe_args}")
-                
+                    raise ValueError(
+                        f"Tool args must be a dictionary, got {type(json_safe_args)}: {json_safe_args}"
+                    )
+
                 try:
                     # Execute the appropriate function
                     if tool_name == "function":
                         # Handle function calls
                         fn_name = json_safe_args.get("function")
                         fn_args = json_safe_args.get("args", {})
-                        
+
                         # ENHANCED: Resolve variables in function args again with nested support
                         fn_args = self._resolve_vars(fn_args, context["variables"])
                         fn_args = self._get_json_serializable_data(fn_args)
-                        
+
                         # Ensure fn_args is a dict
                         if not isinstance(fn_args, dict):
-                            raise ValueError(f"Function args must be a dictionary, got {type(fn_args)}: {fn_args}")
-                        
+                            raise ValueError(
+                                f"Function args must be a dictionary, got {type(fn_args)}: {fn_args}"
+                            )
+
                         fn = self.function_registry.get(fn_name)
                         if fn is None:
                             raise ValueError(f"Unknown function: {fn_name}")
-                        
+
                         # Call function with args (ensure async-native handling)
                         if asyncio.iscoroutinefunction(fn):
                             result = await fn(**fn_args)
@@ -413,33 +436,35 @@ class UniversalExecutor:
                         fn = self.tool_registry.get(tool_name)
                         if fn is None:
                             raise ValueError(f"Unknown tool: {tool_name}")
-                        
+
                         # Execute the tool function directly with JSON-safe args (async-native)
                         if asyncio.iscoroutinefunction(fn):
                             result = await fn(json_safe_args)
                         else:
                             # For sync functions, we can still call them directly
                             result = fn(json_safe_args)
-                    
+
                     # Store result for return
                     results.append(result)
-                    
+
                     # FIXED: Store result immediately if we have a result_variable
                     if result_variable:
                         context["variables"][result_variable] = result
-                    
+
                 except Exception as e:
                     # For test compatibility, we need to raise the exception
                     # rather than return an error dict
                     raise e
-        
+
         # Update context with results for other methods that might use it
         context["results"][step_id] = results
 
         return results
 
     # ----------------------------------------------------------- ROUTING: handle router steps
-    async def _handle_router_step(self, router_step: Any, context: Dict[str, Any]) -> List[Any]:
+    async def _handle_router_step(
+        self, router_step: Any, context: Dict[str, Any]
+    ) -> List[Any]:
         """
         Handle a router step by evaluating the routing condition and marking skipped routes.
 
@@ -452,8 +477,7 @@ class UniversalExecutor:
         """
         # Evaluate the routing decision
         decision = await self.routing_executor.evaluate_route(
-            router_step=router_step,
-            context=context
+            router_step=router_step, context=context
         )
 
         print(f"🔀 Route chosen: {decision.route_key} → {decision.target_step_id[:8]}")
@@ -484,12 +508,14 @@ class UniversalExecutor:
                     break
 
         # Return routing decision as result
-        return [{
-            "routing_decision": True,
-            "route_chosen": decision.route_key,
-            "target_step": decision.target_step_id,
-            "router_step": router_step.id,
-        }]
+        return [
+            {
+                "routing_decision": True,
+                "route_chosen": decision.route_key,
+                "target_step": decision.target_step_id,
+                "router_step": router_step.id,
+            }
+        ]
 
     def _mark_route_skipped(self, step_id: str, context: Dict[str, Any]):
         """
@@ -508,7 +534,9 @@ class UniversalExecutor:
         descendants = self._get_all_descendants(step_id)
         skipped.update(descendants)
 
-        print(f"🔀 Marking {len(descendants) + 1} steps as skipped starting from {step_id[:8]}")
+        print(
+            f"🔀 Marking {len(descendants) + 1} steps as skipped starting from {step_id[:8]}"
+        )
 
     def _get_all_descendants(self, step_id: str) -> Set[str]:
         """
@@ -534,17 +562,19 @@ class UniversalExecutor:
         return descendants
 
     # ----------------------------------------------------------- execution
-    async def execute_plan(self, plan: UniversalPlan, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def execute_plan(
+        self, plan: UniversalPlan, variables: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Execute a UniversalPlan with proper variable resolution.
-        
+
         Parameters
         ----------
         plan : UniversalPlan
             The plan to execute
         variables : Dict[str, Any], optional
             Initial variables for the plan
-            
+
         Returns
         -------
         Dict[str, Any]
@@ -553,7 +583,7 @@ class UniversalExecutor:
         # Ensure session is initialized
         await self._ensure_session()
         await self._register_tools_with_processor()
-        
+
         # Copy plan graph into our store if necessary
         if plan.graph is not self.graph_store:
             for node in plan.graph.nodes.values():
@@ -575,41 +605,49 @@ class UniversalExecutor:
         try:
             # Get all steps for the plan - try multiple approaches
             steps = self.plan_executor.get_plan_steps(plan.id)
-            
+
             # If no steps found via plan_executor, search directly
             if not steps:
                 # Method 1: Find all plan_step nodes in the graph
-                steps = [node for node in self.graph_store.nodes.values() 
-                        if node.kind.value == "plan_step"]
-                
+                steps = [
+                    node
+                    for node in self.graph_store.nodes.values()
+                    if node.kind.value == "plan_step"
+                ]
+
                 # Method 2: If still no steps, check if there are any tool_call nodes
                 # that might be orphaned (this shouldn't happen but let's be safe)
                 if not steps:
-                    tool_calls = [node for node in self.graph_store.nodes.values() 
-                                 if node.kind.value == "tool_call"]
-                    
+                    tool_calls = [
+                        node
+                        for node in self.graph_store.nodes.values()
+                        if node.kind.value == "tool_call"
+                    ]
+
                     # For each tool call, try to execute it directly
                     for tool_node in tool_calls:
                         result = await self._execute_tool_directly(tool_node, ctx)
-                    
+
                     return {"success": True, **ctx}
-            
+
             if not steps:
                 # Truly no steps found - return success with original variables
                 return {"success": True, **ctx}
-            
+
             # Build dependency map
             step_dependencies: Dict[str, Set[str]] = {}
             for step in steps:
                 deps = set()
                 # Get explicit dependencies from STEP_ORDER edges
-                for edge in self.graph_store.get_edges(dst=step.id, kind=EdgeType.STEP_ORDER):
+                for edge in self.graph_store.get_edges(
+                    dst=step.id, kind=EdgeType.STEP_ORDER
+                ):
                     deps.add(edge.src)
                 step_dependencies[step.id] = deps
-            
+
             # Sort steps topologically
             sorted_steps = self._topological_sort(steps, step_dependencies)
-            
+
             # Execute steps in order
             for step in sorted_steps:
                 # ROUTING: Skip steps that were marked as skipped by routing
@@ -618,11 +656,11 @@ class UniversalExecutor:
                     continue
 
                 step_results = await self._execute_step(step, ctx)
-            
+
             # Clean up execution tracking from context before returning
             ctx.pop("executed_steps", None)
             ctx.pop("executed_tool_calls", None)
-            
+
             return {"success": True, **ctx}
         except Exception as exc:
             return {"success": False, "error": str(exc), **ctx}
@@ -633,27 +671,27 @@ class UniversalExecutor:
         tool_name = tool_node.name
         args = tool_node.args
         result_variable = tool_node.result_variable
-        
+
         # Resolve variables in args
         resolved_args = self._resolve_vars(args, context["variables"])
         json_safe_args = self._get_json_serializable_data(resolved_args)
-        
+
         if not isinstance(json_safe_args, dict):
             return None
-        
+
         try:
             # Execute the tool
             if tool_name == "function":
                 fn_name = json_safe_args.get("function")
                 fn_args = json_safe_args.get("args", {})
-                
+
                 if not isinstance(fn_args, dict):
                     return None
-                
+
                 fn = self.function_registry.get(fn_name)
                 if fn is None:
                     return None
-                
+
                 if asyncio.iscoroutinefunction(fn):
                     result = await fn(**fn_args)
                 else:
@@ -662,33 +700,35 @@ class UniversalExecutor:
                 fn = self.tool_registry.get(tool_name)
                 if fn is None:
                     return None
-                
+
                 if asyncio.iscoroutinefunction(fn):
                     result = await fn(json_safe_args)
                 else:
                     result = fn(json_safe_args)
-            
+
             # Store result if result_variable is specified
             if result_variable:
                 context["variables"][result_variable] = result
-            
+
             return result
-            
+
         except Exception:
             return None
 
     # ----------------------------------------------------------- convenience
-    async def execute_plan_by_id(self, plan_id: str, variables: Optional[Dict[str, Any]] = None):
+    async def execute_plan_by_id(
+        self, plan_id: str, variables: Optional[Dict[str, Any]] = None
+    ):
         """
         Execute a plan by its ID.
-        
+
         Parameters
         ----------
         plan_id : str
             The ID of the plan to execute
         variables : Dict[str, Any], optional
             Initial variables for the plan
-            
+
         Returns
         -------
         Dict[str, Any]

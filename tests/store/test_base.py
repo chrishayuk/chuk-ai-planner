@@ -3,10 +3,17 @@ import pytest
 
 from chuk_ai_planner.store.base import GraphStore
 from chuk_ai_planner.graph import (
-    GraphNode, GraphEdge, NodeType, EdgeType,
-    SessionNode, PlanNode, PlanStep,
-    ParentChildEdge, NextEdge
+    GraphNode,
+    GraphEdge,
+    NodeType,
+    EdgeType,
+    SessionNode,
+    PlanNode,
+    PlanStep,
+    ParentChildEdge,
+    NextEdge,
 )
+
 
 class DummyGraphStore(GraphStore):
     def __init__(self):
@@ -28,10 +35,10 @@ class DummyGraphStore(GraphStore):
         self._edges.append(edge)
 
     def get_edges(
-        self, 
-        src: str | None = None, 
+        self,
+        src: str | None = None,
         dst: str | None = None,
-        kind: EdgeType | None = None
+        kind: EdgeType | None = None,
     ) -> list[GraphEdge]:
         results = self._edges
         if src is not None:
@@ -48,7 +55,6 @@ class DummyGraphStore(GraphStore):
 
 
 @pytest.fixture
-
 def store():
     return DummyGraphStore()
 
@@ -56,23 +62,28 @@ def store():
 @pytest.fixture
 def node_factory():
     """Create nodes using specific typed classes."""
+
     def _create(node_id: str, kind: NodeType, **attrs) -> GraphNode:
         # Map node types to their specific classes
         if kind == NodeType.SESSION:
-            return SessionNode(id=node_id, name=attrs.get('name', 'Test Session'))
+            return SessionNode(id=node_id, name=attrs.get("name", "Test Session"))
         elif kind == NodeType.PLAN:
-            return PlanNode(id=node_id, title=attrs.get('title', 'Test Plan'))
+            return PlanNode(id=node_id, title=attrs.get("title", "Test Plan"))
         elif kind == NodeType.PLAN_STEP:
-            return PlanStep(id=node_id, description=attrs.get('description', 'Test Step'))
+            return PlanStep(
+                id=node_id, description=attrs.get("description", "Test Step")
+            )
         else:
             # For other types, create a SessionNode as fallback
-            return SessionNode(id=node_id, name=attrs.get('name', 'Test'))
+            return SessionNode(id=node_id, name=attrs.get("name", "Test"))
+
     return _create
 
 
 @pytest.fixture
 def edge_factory():
     """Create edges using specific typed classes."""
+
     def _create(src: str, dst: str, kind: EdgeType, **attrs):
         if kind == EdgeType.PARENT_CHILD:
             return ParentChildEdge(src=src, dst=dst)
@@ -80,10 +91,12 @@ def edge_factory():
             return NextEdge(src=src, dst=dst)
         else:
             return ParentChildEdge(src=src, dst=dst)
+
     return _create
 
 
 # Node tests
+
 
 def test_add_and_get_node(store, node_factory):
     node = node_factory("n1", NodeType.SESSION, name="Test Session")
@@ -109,7 +122,9 @@ def test_update_nonexistent_node_raises(store, node_factory):
     with pytest.raises(KeyError):
         store.update_node(node)
 
+
 # Edge tests
+
 
 def test_add_and_get_edges(store, edge_factory):
     e1 = edge_factory("n1", "n2", EdgeType.PARENT_CHILD)
@@ -133,16 +148,27 @@ def test_add_and_get_edges(store, edge_factory):
     combined = store.get_edges(src="n1", dst="n3", kind=EdgeType.PARENT_CHILD)
     assert combined == [e3]
 
+
 # get_nodes_by_kind tests
+
 
 def test_get_nodes_by_kind_default_raises():
     # use a subclass that doesn't override get_nodes_by_kind
     class BaseDummy(GraphStore):
-        def add_node(self, node): pass
-        def get_node(self, node_id): return None
-        def update_node(self, node): pass
-        def add_edge(self, edge): pass
-        def get_edges(self, src=None, dst=None, kind=None): return []
+        def add_node(self, node):
+            pass
+
+        def get_node(self, node_id):
+            return None
+
+        def update_node(self, node):
+            pass
+
+        def add_edge(self, edge):
+            pass
+
+        def get_edges(self, src=None, dst=None, kind=None):
+            return []
 
     base = BaseDummy()
     with pytest.raises(NotImplementedError):

@@ -2,6 +2,7 @@
 """
 Console helpers: colour, plan outline, and a tidy PlanRunLogger.
 """
+
 from __future__ import annotations
 import os
 from typing import Dict, List, Any, Callable, Awaitable
@@ -77,7 +78,7 @@ class PlanRunLogger:
             walk(e.dst)
 
         # widest label width for alignment
-        self._w = max((len(l) for l in self.label.values()), default=1) + 2
+        self._w = max((len(lbl) for lbl in self.label.values()), default=1) + 2
 
     # ------- step summary wrapper -------------------------------------
     def evt(self, typ: EventType, msg: Dict[str, Any], _parent: str):
@@ -94,11 +95,10 @@ class PlanRunLogger:
         assistant_id: str,
         real_proc: Callable[[Dict[str, Any], str, str], Awaitable[Any]],
     ):
-        lab  = self.label.get(tc["id"], "<?>")
+        lab = self.label.get(tc["id"], "<?>")
         name = tc["function"]["name"]
         args = tc["function"]["arguments"]
         print(
-            clr("[tool]", "36"),
-            f"{lab:<{self._w}} → {name}({args}) {clr('✓', '32')}"
+            clr("[tool]", "36"), f"{lab:<{self._w}} → {name}({args}) {clr('✓', '32')}"
         )
         return await real_proc(tc, start_evt_id, assistant_id)

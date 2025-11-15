@@ -11,7 +11,12 @@ from typing import Any, Literal, Optional
 from pydantic import Field, field_validator
 
 from chuk_ai_planner.graph.nodes.base import GraphNode
-from chuk_ai_planner.graph.types import NodeType, RouterType, StepStatus, ReliabilityProfile
+from chuk_ai_planner.graph.types import (
+    NodeType,
+    RouterType,
+    StepStatus,
+    ReliabilityProfile,
+)
 
 __all__ = ["PlanNode", "PlanStep", "RouterStep"]
 
@@ -152,7 +157,9 @@ class RouterStep(GraphNode):
 
     @field_validator("route_mapping")
     @classmethod
-    def validate_route_mapping(cls, v: Optional[dict[Any, str]]) -> Optional[dict[Any, str]]:
+    def validate_route_mapping(
+        cls, v: Optional[dict[Any, str]]
+    ) -> Optional[dict[Any, str]]:
         """Route mapping values must be in routes list."""
         # Note: routes haven't been validated yet in this order
         # We'll do a runtime check in the router executor instead

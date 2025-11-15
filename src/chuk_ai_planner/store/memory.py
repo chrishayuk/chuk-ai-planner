@@ -17,37 +17,37 @@ from .base import GraphStore
 class InMemoryGraphStore(GraphStore):
     """
     Simple in-memory graph store for demonstration and testing.
-    
+
     This implementation stores nodes and edges in memory with no persistence.
     """
-    
+
     def __init__(self):
         """Initialize an empty store."""
         self.nodes: Dict[str, GraphNode] = {}  # id -> GraphNode
-        self.edges: List[GraphEdge] = []       # list of GraphEdge
-    
+        self.edges: List[GraphEdge] = []  # list of GraphEdge
+
     def add_node(self, node: GraphNode) -> None:
         """Add a node to the store."""
         self.nodes[node.id] = node
-    
+
     def get_node(self, node_id: str) -> Optional[GraphNode]:
         """Get a node by ID."""
         return self.nodes.get(node_id)
-    
+
     def update_node(self, node: GraphNode) -> None:
         """Update a node in the store."""
         if node.id in self.nodes:
             self.nodes[node.id] = node
-    
+
     def add_edge(self, edge: GraphEdge) -> None:
         """Add an edge to the store."""
         self.edges.append(edge)
-    
+
     def get_edges(
-        self, 
-        src: Optional[str] = None, 
+        self,
+        src: Optional[str] = None,
         dst: Optional[str] = None,
-        kind: Optional[EdgeType] = None
+        kind: Optional[EdgeType] = None,
     ) -> List[GraphEdge]:
         """Get edges matching the criteria."""
         result = []
@@ -60,11 +60,11 @@ class InMemoryGraphStore(GraphStore):
                 continue
             result.append(edge)
         return result
-    
+
     def get_nodes_by_kind(self, kind: NodeType) -> List[GraphNode]:
         """Get all nodes of a particular kind."""
         return [node for node in self.nodes.values() if node.kind == kind]
-    
+
     def clear(self) -> None:
         """Clear all nodes and edges from the store."""
         self.nodes.clear()

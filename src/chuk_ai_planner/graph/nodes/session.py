@@ -64,7 +64,9 @@ class SummaryNode(GraphNode):
     content: str
 
     # What was summarized
-    summary_type: Literal["checkpoint", "completion", "error", "milestone"] = "checkpoint"
+    summary_type: Literal["checkpoint", "completion", "error", "milestone"] = (
+        "checkpoint"
+    )
 
     # Execution state at this point
     execution_state: dict[str, Any] = Field(default_factory=dict)

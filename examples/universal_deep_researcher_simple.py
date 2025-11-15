@@ -144,7 +144,7 @@ async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
     )
 
     # Step 2: summarize
-    s2 = plan.add_function_step(
+    plan.add_function_step(
         title=f"Summarize findings about {topic}",
         function="summarize",
         args={},  # summary uses global docs

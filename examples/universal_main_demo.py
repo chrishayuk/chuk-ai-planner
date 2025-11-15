@@ -562,7 +562,7 @@ def create_sudoku_plan() -> UniversalPlan:
     )
 
     # Step 5: Format the solution
-    format_step = plan.add_function_step(
+    plan.add_function_step(
         title="Format solution",
         function="format_sudoku",
         args={"solution": "${solution_result.solution}"},
@@ -625,7 +625,7 @@ def create_flight_booking_plan() -> UniversalPlan:
     )
 
     # Step 5: Book the flight
-    booking_step = plan.add_tool_step(
+    plan.add_tool_step(
         title="Book selected flight",
         tool="book_flight",
         args={"pricing": "${pricing_results}", "passenger_info": "${passenger_info}"},
@@ -671,7 +671,7 @@ def create_data_analysis_plan() -> UniversalPlan:
     )
 
     # Step 4: Generate report
-    report_step = plan.add_function_step(
+    plan.add_function_step(
         title="Generate analysis report",
         function="generate_report",
         args={"analysis_result": "${analysis_result}"},

@@ -10,13 +10,12 @@ Updated to handle variations in EventType enums.
 
 from typing import List, Any
 
-from chuk_session_manager.models.session import Session
-from chuk_session_manager.models.event_type import EventType
+from chuk_session_manager.models.session import Session  # type: ignore
+from chuk_session_manager.models.event_type import EventType  # type: ignore
 
-from chuk_ai_planner.graph import NodeType
-from chuk_ai_planner.graph import EdgeType
-
-from ..store.base import GraphStore
+from chuk_ai_planner.core.graph import NodeType
+from chuk_ai_planner.core.graph import EdgeType
+from chuk_ai_planner.core.store.base import GraphStore
 
 
 def print_session_events(session: Session) -> None:
@@ -36,7 +35,7 @@ def print_session_events(session: Session) -> None:
     print(f"\n==== SESSION EVENTS ({len(events)}) ====")
 
     # Build parent-child relationships
-    children = {}
+    children: dict[str, list[Any]] = {}
     for event in events:
         parent_id = event.metadata.get("parent_event_id")
         if parent_id:
@@ -82,9 +81,9 @@ def print_session_events(session: Session) -> None:
         print_event(root)
 
 
-def print_graph_structure(graph_store: GraphStore) -> None:
+async def print_graph_structure(graph_store: GraphStore) -> None:
     """
-    Print the structure of the graph in a human-readable format.
+    Print the structure of the graph in a human-readable format (async-native!).
 
     This shows node types, their connections, and important relationships
     like plan steps and tool executions.
@@ -98,12 +97,12 @@ def print_graph_structure(graph_store: GraphStore) -> None:
     nodes = []
     if hasattr(graph_store, "nodes"):
         # InMemoryGraphStore has a nodes dict
-        nodes = list(graph_store.nodes.values())
+        nodes = list(graph_store.nodes.values())  # type: ignore[attr-defined]
     else:
         # Try to get all nodes through get_nodes_by_kind if available
         try:
             for kind in NodeType:
-                nodes.extend(graph_store.get_nodes_by_kind(kind))
+                nodes.extend(await graph_store.get_nodes_by_kind(kind))
         except (AttributeError, NotImplementedError):
             print("Warning: Unable to retrieve nodes from graph store")
 
@@ -122,7 +121,7 @@ def print_graph_structure(graph_store: GraphStore) -> None:
     print(f"Total edges: {len(edges)}")
 
     # Group nodes by kind
-    nodes_by_kind = {}
+    nodes_by_kind: dict[str, list[Any]] = {}
     for node in nodes:
         kind = node.kind.value
         if kind not in nodes_by_kind:
@@ -130,8 +129,8 @@ def print_graph_structure(graph_store: GraphStore) -> None:
         nodes_by_kind[kind].append(node)
 
     print("\nNodes by type:")
-    for kind, kind_nodes in nodes_by_kind.items():
-        print(f"  {kind}: {len(kind_nodes)}")
+    for node_kind, kind_nodes in nodes_by_kind.items():
+        print(f"  {node_kind}: {len(kind_nodes)}")
 
     # Find the session node(s)
     session_nodes = nodes_by_kind.get("session", [])
@@ -163,7 +162,8 @@ def print_graph_structure(graph_store: GraphStore) -> None:
                     _print_plan_structure(graph_store, child, nodes, edges, "    ")
 
                 # If this is an assistant message, show its tool calls
-                elif child.kind == NodeType.ASSIST_MSG:
+                # Note: ASSISTANT_MESSAGE is in the LLM extension, not core NodeType
+                elif child.kind == "assistant_message":
                     _print_assistant_structure(graph_store, child, nodes, edges, "    ")
 
 

@@ -35,9 +35,9 @@ from typing import Any, Dict, Iterable, List, Optional
 from pydantic import BaseModel, Field
 
 from chuk_ai_planner.agents.graph_plan_agent import GraphPlanAgent
-from chuk_ai_planner.graph.types import EdgeType
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
-from chuk_ai_planner.store.base import GraphStore
+from chuk_ai_planner.core.graph.types import EdgeType
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.store.base import GraphStore
 
 __all__ = [
     "Job",
@@ -262,10 +262,8 @@ class JobManager:
 
         try:
             # Let the planner generate the plan
-            plan, plan_id, graph = await self.planner.plan_into_graph(
-                job.description,
-                context=planning_context or {},
-            )
+            # Note: planning_context is not used by plan_into_graph API
+            plan, plan_id, graph = await self.planner.plan_into_graph(job.description)
 
             # Create job run
             run_id = self._new_id("run")
@@ -327,13 +325,16 @@ class JobManager:
             raise ValueError(f"Job {job_id} not found")
 
         # If no run yet, plan one
+        run: JobRun
         if job.current_run_id is None:
             run = await self.plan_job(job.id)
         else:
-            run = await self._get_job_run(job.current_run_id)
-            if run is None:
+            maybe_run = await self._get_job_run(job.current_run_id)
+            if maybe_run is None:
                 # Recoverable: plan a new run
                 run = await self.plan_job(job.id)
+            else:
+                run = maybe_run
 
         # Mark job/run as running
         now = datetime.now(timezone.utc)
@@ -348,11 +349,10 @@ class JobManager:
 
         try:
             # Core: delegate to UniversalExecutor
-            result = await self.executor.execute(
+            # Note: execution_context and resume not supported by execute_plan_by_id
+            result = await self.executor.execute_plan_by_id(
                 plan_id=run.plan_id,
-                session_id=run.session_id,
-                context=execution_context,
-                # Note: resume parameter depends on your executor API
+                variables=execution_context,
             )
 
             # Success!
@@ -563,7 +563,7 @@ class JobManager:
             run = await self._get_job_run(job.current_run_id)
             if run:
                 # Get plan from graph store
-                plan_node = await self.store.get_node(run.plan_id)
+                plan_node = self.store.get_node(run.plan_id)
                 if plan_node:
                     data["plan"] = plan_node
 
@@ -608,55 +608,44 @@ class JobManager:
     # ────────────────────────────────────────────────────────────────────
 
     async def _save_job(self, job: Job) -> None:
-        """Save job to storage."""
-        # For now, use a node-based approach
-        # TODO: Implement proper job storage in GraphStore
-        from chuk_ai_planner.models.nodes import GraphNode, NodeType
+        """Save job to storage - Pydantic native."""
+        from chuk_ai_planner.core.graph import JobNode
 
-        node = GraphNode(
+        node = JobNode(
             id=job.id,
-            kind=NodeType.CUSTOM,
-            data={
-                "entity_type": "job",
-                "description": job.description,
-                "status": job.status.value,
-                "metadata": job.metadata,
-                "tags": job.tags,
-                "current_run_id": job.current_run_id,
-                "run_count": job.run_count,
-                "successful_runs": job.successful_runs,
-                "failed_runs": job.failed_runs,
-                "created_at": job.created_at.isoformat(),
-                "updated_at": job.updated_at.isoformat(),
-            },
+            description=job.description,
+            status=job.status.value,
+            metadata=job.metadata,
+            tags=job.tags,
+            current_run_id=job.current_run_id,
+            run_count=job.run_count,
+            successful_runs=job.successful_runs,
+            failed_runs=job.failed_runs,
+            created_at=job.created_at,
+            updated_at=job.updated_at,
         )
         await self.store.add_node(node)
 
     async def _save_job_run(self, run: JobRun) -> None:
-        """Save job run to storage."""
-        from chuk_ai_planner.models.nodes import GraphNode, NodeType
-        from chuk_ai_planner.graph import GraphEdge, EdgeType
+        """Save job run to storage - Pydantic native."""
+        from chuk_ai_planner.core.graph import JobRunNode, GraphEdge, EdgeType
 
-        node = GraphNode(
+        node = JobRunNode(
             id=run.id,
-            kind=NodeType.CUSTOM,
-            data={
-                "entity_type": "job_run",
-                "job_id": run.job_id,
-                "plan_id": run.plan_id,
-                "session_id": run.session_id,
-                "status": run.status.value,
-                "error": run.error,
-                "error_details": run.error_details,
-                "result_summary": run.result_summary,
-                "steps_completed": run.steps_completed,
-                "steps_total": run.steps_total,
-                "steps_failed": run.steps_failed,
-                "steps_skipped": run.steps_skipped,
-                "created_at": run.created_at.isoformat(),
-                "started_at": run.started_at.isoformat() if run.started_at else None,
-                "finished_at": run.finished_at.isoformat() if run.finished_at else None,
-            },
+            job_id=run.job_id,
+            plan_id=run.plan_id,
+            session_id=run.session_id,
+            status=run.status.value,
+            error=run.error,
+            error_details=run.error_details,
+            result_summary=run.result_summary,
+            steps_completed=run.steps_completed,
+            steps_total=run.steps_total,
+            steps_failed=run.steps_failed,
+            steps_skipped=run.steps_skipped,
+            created_at=run.created_at,
+            started_at=run.started_at,
+            finished_at=run.finished_at,
         )
         await self.store.add_node(node)
 
@@ -669,53 +658,51 @@ class JobManager:
         await self.store.add_edge(edge)
 
     async def _get_job(self, job_id: str) -> Optional[Job]:
-        """Retrieve job from storage."""
+        """Retrieve job from storage - Pydantic native."""
+        from chuk_ai_planner.core.graph import JobNode
+
         node = await self.store.get_node(job_id)
-        if not node or node.data.get("entity_type") != "job":
+        if not node or not isinstance(node, JobNode):
             return None
 
-        data = node.data
         return Job(
             id=node.id,
-            description=data["description"],
-            status=JobStatus(data["status"]),
-            metadata=data.get("metadata", {}),
-            tags=data.get("tags", []),
-            current_run_id=data.get("current_run_id"),
-            run_count=data.get("run_count", 0),
-            successful_runs=data.get("successful_runs", 0),
-            failed_runs=data.get("failed_runs", 0),
-            created_at=datetime.fromisoformat(data["created_at"]),
-            updated_at=datetime.fromisoformat(data["updated_at"]),
+            description=node.description,
+            status=JobStatus(node.status),
+            metadata=node.metadata,
+            tags=node.tags,
+            current_run_id=node.current_run_id,
+            run_count=node.run_count,
+            successful_runs=node.successful_runs,
+            failed_runs=node.failed_runs,
+            created_at=node.created_at,
+            updated_at=node.updated_at,
         )
 
     async def _get_job_run(self, run_id: str) -> Optional[JobRun]:
-        """Retrieve job run from storage."""
+        """Retrieve job run from storage - Pydantic native."""
+        from chuk_ai_planner.core.graph import JobRunNode
+
         node = await self.store.get_node(run_id)
-        if not node or node.data.get("entity_type") != "job_run":
+        if not node or not isinstance(node, JobRunNode):
             return None
 
-        data = node.data
         return JobRun(
             id=node.id,
-            job_id=data["job_id"],
-            plan_id=data["plan_id"],
-            session_id=data["session_id"],
-            status=JobRunStatus(data["status"]),
-            error=data.get("error"),
-            error_details=data.get("error_details"),
-            result_summary=data.get("result_summary"),
-            steps_completed=data.get("steps_completed", 0),
-            steps_total=data.get("steps_total", 0),
-            steps_failed=data.get("steps_failed", 0),
-            steps_skipped=data.get("steps_skipped", 0),
-            created_at=datetime.fromisoformat(data["created_at"]),
-            started_at=datetime.fromisoformat(data["started_at"])
-            if data.get("started_at")
-            else None,
-            finished_at=datetime.fromisoformat(data["finished_at"])
-            if data.get("finished_at")
-            else None,
+            job_id=node.job_id,
+            plan_id=node.plan_id,
+            session_id=node.session_id,
+            status=JobRunStatus(node.status),
+            error=node.error,
+            error_details=node.error_details,
+            result_summary=node.result_summary,
+            steps_completed=node.steps_completed,
+            steps_total=node.steps_total,
+            steps_failed=node.steps_failed,
+            steps_skipped=node.steps_skipped,
+            created_at=node.created_at,
+            started_at=node.started_at,
+            finished_at=node.finished_at,
         )
 
     async def _list_jobs(
@@ -725,14 +712,15 @@ class JobManager:
         limit: int = 50,
         offset: int = 0,
     ) -> List[Job]:
-        """List jobs with filtering."""
-        # Stub - needs proper query support in GraphStore
-        # For now, get all nodes and filter in memory
-        all_nodes = await self.store.list_nodes(kind="CUSTOM")
+        """List jobs with filtering - Pydantic native."""
+        from chuk_ai_planner.core.graph import JobNode
+
+        # Get all job nodes
+        all_nodes = await self.store.list_nodes(kind="job")
 
         jobs = []
         for node in all_nodes:
-            if node.data.get("entity_type") != "job":
+            if not isinstance(node, JobNode):
                 continue
 
             job = await self._get_job(node.id)

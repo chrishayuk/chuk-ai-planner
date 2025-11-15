@@ -35,10 +35,9 @@ def create_research_plan() -> UniversalPlan:
     plan.step("Initial Research")
 
     # Add steps directly with tool/function/subplan calls
-    initial_research_idx = "1"  # Root step index
 
     # Add search steps for climate impact data
-    search_step_idx = plan.add_tool_step(
+    plan.add_tool_step(
         title="Search for climate impact data",
         tool="search",
         args={"query": "climate change impact coastal cities data"},
@@ -46,7 +45,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add search steps for scientific papers
-    scientific_step_idx = plan.add_tool_step(
+    plan.add_tool_step(
         title="Search for scientific papers",
         tool="search",
         args={
@@ -56,7 +55,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add function step to extract key sources
-    extract_step_idx = plan.add_function_step(
+    plan.add_function_step(
         title="Extract key sources",
         function="extract_best_sources",
         args={
@@ -69,10 +68,9 @@ def create_research_plan() -> UniversalPlan:
 
     # Add content exploration section
     plan.step("Content Exploration")
-    content_exploration_idx = "2"  # Second top-level step
 
     # Add step to process sources
-    process_step_idx = plan.add_function_step(
+    plan.add_function_step(
         title="Process each source",
         function="process_sources",
         args={"sources": "${key_sources}"},
@@ -80,7 +78,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add step to analyze content
-    analyze_step_idx = plan.add_function_step(
+    plan.add_function_step(
         title="Analyze source content",
         function="analyze_content",
         args={"contents": "${source_contents}"},
@@ -89,10 +87,9 @@ def create_research_plan() -> UniversalPlan:
 
     # Add deeper research section
     plan.step("Deeper Research")
-    deeper_research_idx = "3"  # Third top-level step
 
     # Add subplan step
-    subplan_step_idx = plan.add_plan_step(
+    plan.add_plan_step(
         title="Explore impact categories",
         plan_id="impact_categories_plan",
         args={
@@ -103,7 +100,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add step to generate focused queries
-    queries_step_idx = plan.add_function_step(
+    plan.add_function_step(
         title="Generate focused queries",
         function="generate_queries",
         args={"analysis": "${content_analysis}", "categories": "${impact_categories}"},
@@ -111,7 +108,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add step for focused searches
-    focused_search_idx = plan.add_tool_step(
+    plan.add_tool_step(
         title="Execute focused searches",
         tool="batch_search",
         args={"queries": "${focused_queries}"},
@@ -120,10 +117,9 @@ def create_research_plan() -> UniversalPlan:
 
     # Add synthesis section
     plan.step("Synthesis")
-    synthesis_idx = "4"  # Fourth top-level step
 
     # Add step to synthesize findings
-    synthesize_idx = plan.add_function_step(
+    plan.add_function_step(
         title="Synthesize research findings",
         function="synthesize_findings",
         args={
@@ -135,7 +131,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add step to generate report
-    report_idx = plan.add_function_step(
+    plan.add_function_step(
         title="Generate comprehensive report",
         function="generate_report",
         args={"synthesis": "${research_synthesis}"},

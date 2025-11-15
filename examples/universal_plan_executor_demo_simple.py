@@ -171,7 +171,7 @@ def create_weather_analysis_plan() -> UniversalPlan:
     )
 
     # Step 3: Generate report
-    report_step = plan.add_function_step(
+    plan.add_function_step(
         title="Generate Weather Report",
         function="create_report",
         args={"analysis": "${analysis}"},
@@ -180,7 +180,7 @@ def create_weather_analysis_plan() -> UniversalPlan:
     )
 
     # Step 4: Format visualization data (parallel with report)
-    viz_step = plan.add_function_step(
+    plan.add_function_step(
         title="Format Visualization Data",
         function="format_visualization",
         args={"weather_data": "${weather_data}", "analysis": "${analysis}"},

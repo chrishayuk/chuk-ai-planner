@@ -12,7 +12,7 @@ import re
 import urllib.parse
 from typing import Dict
 
-import requests
+import requests  # type: ignore[import-untyped]
 from chuk_tool_processor.registry.decorators import register_tool
 from chuk_tool_processor.models.validated_tool import ValidatedTool
 

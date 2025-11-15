@@ -16,15 +16,15 @@ import time
 from typing import Dict, Any
 
 # Import planner components
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.graph import ToolCall
-from chuk_ai_planner.graph import GraphEdge, EdgeType
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.graph import ToolCall
+from chuk_ai_planner.core.graph import GraphEdge, EdgeType, CustomEdge
 from chuk_ai_planner.processor import GraphAwareToolProcessor
 from chuk_ai_planner.utils.visualization import print_session_events
 
 # Import session management
-from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from chuk_session_manager.models.session import Session
+from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider  # type: ignore[import-untyped]
+from chuk_session_manager.models.session import Session  # type: ignore[import-untyped]
 
 # Import the actual tools from sample_tools
 from sample_tools import SearchTool, VisitURL
@@ -118,6 +118,9 @@ async def call_llm(prompt: str) -> Dict[str, Any]:
 
     # Get the content
     content = resp.choices[0].message.content
+    if content is None:
+        raise ValueError("LLM returned no content")
+
     print(f"📄 Response content: {content[:100]}...")
 
     # Handle JSON extraction if needed
@@ -134,8 +137,8 @@ async def call_llm(prompt: str) -> Dict[str, Any]:
         return json.loads(content)
 
 
-def convert_to_universal_plan(plan_json: Dict[str, Any]) -> UniversalPlan:
-    """Convert JSON plan to UniversalPlan object"""
+async def convert_to_universal_plan(plan_json: Dict[str, Any]) -> UniversalPlan:
+    """Convert JSON plan to UniversalPlan object (async-native!)"""
     plan = UniversalPlan(
         title=plan_json.get("title", "Research Plan"),
         description="Generated research plan",
@@ -156,13 +159,16 @@ def convert_to_universal_plan(plan_json: Dict[str, Any]) -> UniversalPlan:
 
         # Find the step ID
         step_id = None
-        for node in plan._graph.nodes.values():
-            if (
-                node.__class__.__name__ == "PlanStep"
-                and node.data.get("index") == step_index
-            ):
-                step_id = node.id
-                break
+        # For InMemoryGraphStore, we can access nodes directly
+        if hasattr(plan._graph, "nodes"):
+            for node in plan._graph.nodes.values():  # type: ignore[attr-defined]
+                if (
+                    node.__class__.__name__ == "PlanStep"
+                    and hasattr(node, "index")
+                    and node.index == step_index  # type: ignore[attr-defined]
+                ):
+                    step_id = node.id
+                    break
 
         if step_id:
             step_ids[i] = step_id
@@ -178,20 +184,20 @@ def convert_to_universal_plan(plan_json: Dict[str, Any]) -> UniversalPlan:
         args = step_data.get("args", {})
 
         if tool:
-            # Create and link tool call
-            tool_call = ToolCall(data={"name": tool, "args": args})
-            plan._graph.add_node(tool_call)
-            plan._graph.add_edge(
+            # Create and link tool call (Pydantic-native!)
+            tool_call = ToolCall(name=tool, args=args)
+            await plan._graph.add_node(tool_call)
+            await plan._graph.add_edge(
                 GraphEdge(kind=EdgeType.PLAN_LINK, src=step_id, dst=tool_call.id)
             )
 
             # Store result in variable
-            plan._graph.add_edge(
-                GraphEdge(
-                    kind=EdgeType.CUSTOM,
+            await plan._graph.add_edge(
+                CustomEdge(
                     src=step_id,
                     dst=tool_call.id,
-                    data={"type": "result_variable", "variable": f"result_{i}"},
+                    custom_type="result_variable",
+                    metadata={"variable": f"result_{i}"},
                 )
             )
 
@@ -199,7 +205,7 @@ def convert_to_universal_plan(plan_json: Dict[str, Any]) -> UniversalPlan:
         for dep_idx in step_data.get("depends_on", []):
             dep_id = step_ids.get(dep_idx)
             if dep_id:
-                plan._graph.add_edge(
+                await plan._graph.add_edge(
                     GraphEdge(kind=EdgeType.STEP_ORDER, src=dep_id, dst=step_id)
                 )
 
@@ -227,10 +233,10 @@ async def prepare_session():
 
 
 async def execute_plan(plan_json, session_id, tracker):
-    """Execute a single research plan with direct execution"""
+    """Execute a single research plan with direct execution (async-native!)"""
     # Convert JSON to UniversalPlan
-    plan = convert_to_universal_plan(plan_json)
-    plan_id = plan.save()
+    plan = await convert_to_universal_plan(plan_json)
+    await plan.save()
 
     # Setup processor with tools
     proc = GraphAwareToolProcessor(session_id, plan.graph)

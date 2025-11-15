@@ -142,7 +142,7 @@ async def example_resume():
 
     try:
         # This might fail partway through
-        run = await manager.start_job(job.id)
+        await manager.start_job(job.id)
     except Exception as e:
         print(f"\nJob failed: {e}")
 

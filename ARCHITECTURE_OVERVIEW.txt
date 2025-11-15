@@ -1,0 +1,234 @@
+================================================================================
+CHUK-AI-PLANNER: NEW ARCHITECTURE OVERVIEW
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         USER APPLICATION CODE                              │
+│                                                                             │
+│  from chuk_ai_planner.core.graph import PlanNode, PlanStep                │
+│  from chuk_ai_planner.core.planner import Plan                            │
+│  from chuk_ai_planner.extensions.llm import UserMessage                   │
+└──────────────────────────────────┬──────────────────────────────────────────┘
+                                   │
+                ┌──────────────────┴──────────────────┐
+                │                                     │
+    ┌───────────▼──────────┐          ┌──────────────▼──────────┐
+    │                      │          │                         │
+    │  CORE FRAMEWORK      │          │ EXTENSIONS (Optional)   │
+    │                      │          │                         │
+    │ src/chuk_ai_planner  │          │ src/chuk_ai_planner    │
+    │ /core/               │          │ /extensions/           │
+    │                      │          │                         │
+    └────────┬─────────────┘          └───────────┬─────────────┘
+             │                                    │
+             │                    ┌───────────────┘
+             │                    │
+             ▼                    ▼
+    ┌──────────────────────┐  ┌──────────────────┐
+    │   GRAPH SYSTEM       │  │  LLM EXTENSION   │
+    │  (Pure Pydantic)     │  │                  │
+    │                      │  │ • UserMessage    │
+    │  • GraphNode (base)  │  │ • AssistantMsg   │
+    │  • GraphEdge (base)  │  │ • SystemMessage  │
+    │  • NodeType enums    │  │ • LLMNodeType    │
+    │  • EdgeType enums    │  │                  │
+    └──────────┬───────────┘  └──────────────────┘
+               │
+      ┌────────┴────────┬────────────────────┐
+      │                 │                    │
+      ▼                 ▼                    ▼
+  ┌─────────┐     ┌──────────┐        ┌────────────┐
+  │  NODES  │     │  EDGES   │        │    TYPES   │
+  │         │     │          │        │            │
+  │ Planning│     │Hierarchy │        │ NodeType   │
+  │• Plan   │     │• Parent- │        │ EdgeType   │
+  │• Step   │     │  Child   │        │ RouterType │
+  │• Router │     │          │        │ StepStatus │
+  │         │     │Planning  │        │ ApprovalSt │
+  │Execution│     │• PlanLink│        │ TaskStatus │
+  │• Tool   │     │• StepEdge│        │ SummaryTyp │
+  │• TaskRun│     │          │        │            │
+  │         │     │Routing   │        └────────────┘
+  │Session  │     │• RouteE. │
+  │• Session│     │          │
+  │• Summary│     │Ordering  │
+  │         │     │• NextE.  │
+  │Workflow │     │• CustomE │
+  │• Approval     │          │
+  │         │     │Workflow  │
+  │Artifact │     │• Approval│
+  │• Artifact    │• Fallback│
+  │         │     │• Artifact│
+  │Jobs     │     │          │
+  │• Job    │     └──────────┘
+  │• JobRun │
+  └────┬────┘
+       │
+       └─────────────────────────┐
+                                 │
+                        ┌────────▼──────────┐
+                        │  STORAGE LAYER    │
+                        │                   │
+                        │ GraphStore (ABC)  │
+                        │ • add_node()      │
+                        │ • get_node()      │
+                        │ • add_edge()      │
+                        │ • get_edges()     │
+                        │                   │
+                        │ InMemoryGraphStore│
+                        │ (Reference Impl)  │
+                        └───────────────────┘
+
+================================================================================
+PLANNING SYSTEM HIERARCHY
+================================================================================
+
+Plan DSL (Author-Facing)
+    │
+    ├─ fluent builder API
+    │   └─ .step() / .up()
+    │
+    ├─ hierarchical structure
+    │   └─ "1", "1.1", "1.2.3"
+    │
+    └─ persists to graph as:
+       ├─ PlanNode (root)
+       ├─ PlanStep nodes (hierarchical)
+       └─ ParentChildEdge + StepEdge (relationships)
+
+                       │
+                       ▼
+
+Internal: PlanExecutor (NOT author-facing)
+    │
+    ├─ get_plan_steps(plan_id)
+    │   └─ DFS over PARENT_CHILD edges
+    │
+    ├─ determine_execution_order(steps)
+    │   └─ Topological sort for parallelization
+    │
+    └─ execute_step(step_id)
+        └─ Runs tool calls linked to step
+
+                       │
+                       ▼
+
+Routing System
+    │
+    ├─ Expression-based
+    │   └─ Evaluate ${variable} expressions
+    │
+    ├─ LLM-based
+    │   └─ Ask LLM to choose path
+    │
+    └─ Function-based
+        └─ Execute custom function
+
+================================================================================
+PYDANTIC MODEL HIERARCHY
+================================================================================
+
+BaseModel (Pydantic)
+    │
+    ├─── GraphNode
+    │     │
+    │     ├─── PlanNode           (kind: "plan")
+    │     ├─── PlanStep           (kind: "plan_step")
+    │     ├─── RouterStep         (kind: "router_step")
+    │     ├─── ToolCall           (kind: "tool_call")
+    │     ├─── TaskRun            (kind: "task_run")
+    │     ├─── SessionNode        (kind: "session")
+    │     ├─── SummaryNode        (kind: "summary")
+    │     ├─── ApprovalNode       (kind: "approval")
+    │     ├─── ArtifactNode       (kind: "artifact")
+    │     ├─── JobNode            (kind: "job")
+    │     ├─── JobRunNode         (kind: "job_run")
+    │     │
+    │     └─── Extension Nodes (from extensions/)
+    │           ├─── UserMessage  (kind: "user_message")
+    │           ├─── AssistantMsg (kind: "assistant_message")
+    │           └─── SystemMessage(kind: "system_message")
+    │
+    └─── GraphEdge
+          │
+          ├─── ParentChildEdge      (kind: "parent_child")
+          ├─── PlanLinkEdge         (kind: "plan_link")
+          ├─── StepEdge             (kind: "step_order")
+          ├─── RouteEdge            (kind: "route")
+          ├─── NextEdge             (kind: "next")
+          ├─── CustomEdge           (kind: "custom")
+          ├─── ApprovalEdge         (kind: "approval")
+          ├─── FallbackEdge         (kind: "fallback")
+          └─── ArtifactDependencyE. (kind: "artifact_dependency")
+
+All models:
+  • Frozen (immutable)
+  • Use Literal types for kind
+  • Hashable by ID
+  • Equal by ID
+  • Validated at creation
+
+================================================================================
+EXECUTION FLOW EXAMPLE
+================================================================================
+
+1. Author creates plan:
+   
+   plan = Plan("My Workflow")
+       .step("Research")
+           .step("Find sources")
+           .step("Read papers")
+       .up()
+       .step("Write")
+   
+2. Plan persists to graph:
+   
+   PlanNode(id="plan_123", title="My Workflow")
+       ├─ PlanStep(id="step_1", index="1", description="Research")
+       │    ├─ PlanStep(id="step_1_1", index="1.1", description="Find sources")
+       │    └─ PlanStep(id="step_1_2", index="1.2", description="Read papers")
+       └─ PlanStep(id="step_2", index="2", description="Write")
+   
+   Edges:
+       PlanLinkEdge(src=plan_123, dst=step_1)
+       ParentChildEdge(src=step_1, dst=step_1_1)
+       ParentChildEdge(src=step_1, dst=step_1_2)
+       StepEdge(src=step_1, dst=step_2)  # dependency
+
+3. Execution:
+   
+   PlanExecutor:
+       1. get_plan_steps(plan_123)
+           └─ Returns [step_1, step_1_1, step_1_2, step_2] via DFS
+       
+       2. determine_execution_order()
+           └─ Returns [[step_1_1, step_1_2], [step_2]]  # 2 batches
+       
+       3. execute_step(step) for each batch
+           └─ Creates ToolCall nodes
+           └─ Executes them
+           └─ Creates TaskRun nodes with results
+
+================================================================================
+FILE ORGANIZATION CHECKLIST
+================================================================================
+
+Core Framework (Domain-Agnostic)
+    ✓ Graph system (types, nodes, edges) - 600+ lines of typed models
+    ✓ Planning engine - 1700+ lines (DSL, executor, registry)
+    ✓ Routing system - conditional execution strategies
+    ✓ Storage abstraction - interface + in-memory reference impl
+    ✓ No dependencies on domain-specific code
+
+Extensions (Domain-Specific, Optional)
+    ✓ LLM extension - chat/message-specific nodes
+    ✓ Clear separation from core
+    ✓ Follows same patterns as core
+    ✓ Can be imported independently
+
+Key Principle: "Zero coupling between core and extensions"
+    └─ Core doesn't know about LLM
+       Core doesn't know about future audio/video extensions
+       Extensions depend on core, not vice versa
+
+================================================================================

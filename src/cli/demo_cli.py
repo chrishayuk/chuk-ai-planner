@@ -23,11 +23,11 @@ from dotenv import load_dotenv
 from sample_tools import WeatherTool, SearchTool, VisitURL  # noqa: F401
 
 # ── A2A plumbing ────────────────────────────────────────────────────
-from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider
-from chuk_session_manager.models.session import Session
-from chuk_ai_planner.planner import Plan
-from chuk_ai_planner.graph import ToolCall
-from chuk_ai_planner.graph import GraphEdge, EdgeType
+from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider  # type: ignore[import-untyped]
+from chuk_session_manager.models.session import Session  # type: ignore[import-untyped]
+from chuk_ai_planner.core.planner import Plan
+from chuk_ai_planner.core.graph import ToolCall
+from chuk_ai_planner.core.graph import GraphEdge, EdgeType
 from chuk_ai_planner.processor import GraphAwareToolProcessor
 from chuk_ai_planner.utils.visualization import (
     print_session_events,
@@ -281,7 +281,10 @@ async def extract_new_directions(
             temperature=0.3,
             messages=[{"role": "user", "content": prompt}],
         )
-        content = response.choices[0].message.content.strip()
+        raw_content = response.choices[0].message.content
+        if raw_content is None:
+            raise ValueError("LLM returned no content")
+        content = raw_content.strip()
 
         # Try to parse as JSON
         try:
@@ -311,18 +314,21 @@ async def execute_plan(
 ) -> List[Dict]:
     """Execute a research plan and collect results."""
 
-    # Create plan structure
+    # Create plan structure (async-native!)
     plan = Plan(plan_json["title"])
     for s in plan_json["steps"]:
         plan.step(s["title"]).up()
-    plan_id = plan.save()
+    plan_id = await plan.save()
 
     # Link steps to tools
-    idx2step = {
-        n.data["index"]: n.id
-        for n in plan.graph.nodes.values()
-        if n.__class__.__name__ == "PlanStep"
-    }
+    # For InMemoryGraphStore, we can access nodes directly
+    idx2step = {}
+    if hasattr(plan.graph, "nodes"):
+        idx2step = {
+            str(n.index): n.id  # type: ignore[attr-defined]
+            for n in plan.graph.nodes.values()  # type: ignore[attr-defined]
+            if n.__class__.__name__ == "PlanStep" and hasattr(n, "index")
+        }
 
     for i, s in enumerate(plan_json["steps"], 1):
         # Track searches and URLs
@@ -331,9 +337,10 @@ async def execute_plan(
         elif s["tool"] == "visit_url" and "url" in s["args"]:
             tracker.add_url(s["args"]["url"])
 
-        tc = ToolCall(data={"name": s["tool"], "args": s["args"]})
-        plan.graph.add_node(tc)
-        plan.graph.add_edge(
+        # Pydantic-native!
+        tc = ToolCall(name=s["tool"], args=s["args"])
+        await plan.graph.add_node(tc)
+        await plan.graph.add_edge(
             GraphEdge(kind=EdgeType.PLAN_LINK, src=idx2step[str(i)], dst=tc.id)
         )
 
@@ -347,12 +354,16 @@ async def execute_plan(
     # Execute plan and collect results
     results_list = []
 
+    def on_step_callback(step_id, results):
+        results_list.extend(results)
+        return True
+
     try:
         await proc.process_plan(
             plan_id,
             "assistant",
             lambda _: None,
-            on_step=lambda step_id, results: results_list.extend(results) or True,
+            on_step=on_step_callback,
         )
     except Exception as e:
         print(f"Error executing plan: {e}")
@@ -418,7 +429,10 @@ async def create_comprehensive_summary(results: list[dict[str, Any]], goal: str)
             temperature=0,
             messages=[{"role": "user", "content": prompt}],
         )
-        return rsp.choices[0].message.content.strip()
+        raw_content = rsp.choices[0].message.content
+        if raw_content is None:
+            raise ValueError("LLM returned no content")
+        return raw_content.strip()
     except Exception as e:
         print(f"Error generating summary: {e}")
         return "Error generating summary. Please check the research results manually."
@@ -541,7 +555,7 @@ async def run(user_prompt: str) -> None:
 
     # Print graph structure of the first graph (if available)
     if tracker.all_graphs:
-        print_graph_structure(tracker.all_graphs[0])
+        await print_graph_structure(tracker.all_graphs[0])
 
 
 # ╭──────────────────────────────────────────────────────────────────╮

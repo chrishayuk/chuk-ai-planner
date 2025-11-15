@@ -14,7 +14,7 @@ import asyncio
 from typing import Dict, Tuple
 
 import httpx
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Nominatim  # type: ignore[import-untyped]
 from chuk_tool_processor.registry.decorators import register_tool
 from chuk_tool_processor.models.validated_tool import ValidatedTool
 
@@ -61,7 +61,7 @@ def _fetch_weather(lat: float, lon: float, units: str) -> Dict:
     }
     url = "https://api.open-meteo.com/v1/forecast"
     with httpx.Client(timeout=8) as http:
-        rsp = http.get(url, params=params)
+        rsp = http.get(url, params=params)  # type: ignore[arg-type]
         rsp.raise_for_status()
     cur = rsp.json()["current"]
     return {
@@ -90,7 +90,7 @@ class WeatherTool(ValidatedTool):
         location: str
 
     # core logic (sync) ------------------------------------------------
-    def _execute(self, *, location: str, units: str) -> Dict:
+    def _execute(self, *, location: str, units: str) -> Dict:  # type: ignore[override]
         lat, lon = _geocode(location)  # may raise
         data = _fetch_weather(lat, lon, units)  # may raise
         data["location"] = location

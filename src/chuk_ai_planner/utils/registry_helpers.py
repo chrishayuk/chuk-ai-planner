@@ -37,8 +37,8 @@ async def _get_executor():
 
 async def execute_tool(
     tool_call: Dict[str, Any],
-    _parent_event_id: str,
-    _assistant_node_id: str,
+    _parent_event_id: str | None = None,
+    _assistant_node_id: str | None = None,
 ) -> Dict[str, Any]:
     """
     Dispatch *tool_call* (a Chat-Completions-style dict) via the tool
@@ -77,7 +77,8 @@ async def execute_tool(
     executor = await _get_executor()
 
     # Create a tool call in the new format
-    tc = ToolCall(id=tool_call.get("id", str(uuid4())), tool=name, arguments=args)
+    call_id = tool_call.get("id", str(uuid4()))
+    tc = ToolCall(id=call_id, tool=name, arguments=args, idempotency_key=call_id)
 
     # Execute the tool call
     results = await executor.execute([tc])

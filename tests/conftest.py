@@ -268,7 +268,7 @@ def sample_session():
 @pytest.fixture
 def graph_store():
     """Create an in-memory graph store for testing"""
-    from chuk_ai_planner.store.memory import InMemoryGraphStore
+    from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
     return InMemoryGraphStore()
 

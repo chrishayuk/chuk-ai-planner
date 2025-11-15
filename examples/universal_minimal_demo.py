@@ -58,7 +58,7 @@ async def run_demo(topic):
     )
 
     # Add a summary step
-    s2 = plan.add_function_step(
+    plan.add_function_step(
         title="Generate summary",
         function="summarize",
         args={},  # No arguments needed

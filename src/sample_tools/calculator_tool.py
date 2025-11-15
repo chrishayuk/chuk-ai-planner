@@ -33,7 +33,7 @@ class CalculatorTool(ValidatedTool):
         operation: str
 
     # ── internal calculation (blocking)────────────────────────────
-    def _execute(self, operation: str, a: float, b: float) -> Dict:
+    def _execute(self, operation: str, a: float, b: float) -> Dict:  # type: ignore[override]
         if operation == "add":
             result = a + b
         elif operation == "subtract":

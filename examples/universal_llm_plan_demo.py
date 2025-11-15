@@ -276,7 +276,7 @@ async def main(live: bool) -> None:
     plan = convert_to_universal_plan(llm_json)
 
     # Save the plan
-    plan_id = plan.save()
+    plan.save()
 
     print("\n📋 UNIVERSAL PLAN STRUCTURE\n")
     print(plan.outline(), "\n")

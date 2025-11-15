@@ -520,7 +520,7 @@ def create_main_plan(subplan_ids: Dict[str, str]) -> UniversalPlan:
     )
 
     # Add step to generate report
-    report_step_id = plan.add_function_step(
+    plan.add_function_step(
         title="Generate comprehensive report",
         function="generate_report",
         args={"analysis_results": "${combined_results}"},

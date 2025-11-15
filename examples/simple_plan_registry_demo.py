@@ -40,7 +40,7 @@ def main():
     plan.set_variable("location", "New York")
 
     # Add a tool step
-    step_id = plan.add_tool_step(
+    plan.add_tool_step(
         title="Check Weather",
         tool="weather",
         args={"location": "${location}"},

@@ -450,7 +450,7 @@ def analyze_test_execution(
 
     total_tests = sum(tr["total"] for tr in test_results)
     total_passed = sum(tr["passed"] for tr in test_results)
-    total_failed = sum(tr["failed"] for tr in test_results)
+    sum(tr["failed"] for tr in test_results)
 
     for result in test_results:
         name = result["name"].replace("run_", "").replace("_tests", "").upper()

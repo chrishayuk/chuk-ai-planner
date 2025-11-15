@@ -64,7 +64,7 @@ def create_research_plan(
     )
 
     # Add a summarization step
-    summary_step_id = plan.add_function_step(
+    plan.add_function_step(
         title="Generate summary",
         function="generate_summary",
         args={"analysis": "${analysis}"},

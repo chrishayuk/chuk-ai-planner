@@ -9,15 +9,15 @@ import asyncio
 from typing import Any, Dict, List, Callable, Optional
 from uuid import uuid4
 
-from chuk_ai_planner.graph.node_manager import GraphNodeManager
-from chuk_ai_planner.planner.plan_executor import PlanExecutor
-from chuk_session_manager.storage import SessionStoreProvider
-from chuk_session_manager.models.session_event import SessionEvent
-from chuk_session_manager.models.event_type import EventType
-from chuk_session_manager.models.event_source import EventSource
-from chuk_session_manager.models.session_run import SessionRun
+from chuk_ai_planner.core.graph.node_manager import GraphNodeManager
+from chuk_ai_planner.core.planner.plan_executor import PlanExecutor
+from chuk_session_manager.storage import SessionStoreProvider  # type: ignore[import-untyped]
+from chuk_session_manager.models.session_event import SessionEvent  # type: ignore[import-untyped]
+from chuk_session_manager.models.event_type import EventType  # type: ignore[import-untyped]
+from chuk_session_manager.models.event_source import EventSource  # type: ignore[import-untyped]
+from chuk_session_manager.models.session_run import SessionRun  # type: ignore[import-untyped]
 from chuk_tool_processor.models.tool_result import ToolResult
-from .store.base import GraphStore
+from chuk_ai_planner.core.store.base import GraphStore
 
 _log = logging.getLogger(__name__)
 
@@ -182,13 +182,13 @@ class GraphAwareToolProcessor:
                     parent_event_id,
                 )
                 if assistant_node_id:
-                    tool_node = self.node_mgr.create_tool_call_node(
+                    tool_node = await self.node_mgr.create_tool_call_node(
                         tool_name, args, cached, assistant_node_id, is_cached=True
                     )
-                    self.node_mgr.create_task_run_node(
+                    await self.node_mgr.create_task_run_node(
                         tool_node.id, True, error=None, result=cached
                     )
-                return ToolResult(id=call_id, tool=tool_name, args=args, result=cached)
+                return ToolResult(id=call_id, tool=tool_name, result=cached, error=None)
 
         # First, try to use the new tool executor
         executor = await self._get_tool_executor()
@@ -199,7 +199,9 @@ class GraphAwareToolProcessor:
                 )
 
                 # Create a ToolCall for the executor
-                tc = ProcessorToolCall(id=call_id, tool=tool_name, arguments=args)
+                tc = ProcessorToolCall(
+                    id=call_id, tool=tool_name, arguments=args, idempotency_key=call_id
+                )
 
                 # Execute the tool
                 results = await executor.execute([tc])
@@ -226,17 +228,16 @@ class GraphAwareToolProcessor:
 
                     # Update graph nodes
                     if assistant_node_id:
-                        tool_node = self.node_mgr.create_tool_call_node(
+                        tool_node = await self.node_mgr.create_tool_call_node(
                             tool_name, args, result, assistant_node_id, error=error
                         )
-                        self.node_mgr.create_task_run_node(
+                        await self.node_mgr.create_task_run_node(
                             tool_node.id, success, error=error, result=result
                         )
 
                     return ToolResult(
                         id=call_id,
                         tool=tool_name,
-                        args=args,
                         result=result,
                         error=error,
                     )
@@ -270,16 +271,14 @@ class GraphAwareToolProcessor:
 
         # Update graph nodes
         if assistant_node_id:
-            tool_node = self.node_mgr.create_tool_call_node(
+            tool_node = await self.node_mgr.create_tool_call_node(
                 tool_name, args, result, assistant_node_id, error=error
             )
-            self.node_mgr.create_task_run_node(
+            await self.node_mgr.create_task_run_node(
                 tool_node.id, success, error=error, result=result
             )
 
-        return ToolResult(
-            id=call_id, tool=tool_name, args=args, result=result, error=error
-        )
+        return ToolResult(id=call_id, tool=tool_name, result=result, error=error)
 
     def _create_child_event(
         self, event_type: EventType, message: Dict[str, Any], parent_id: str
@@ -354,13 +353,13 @@ class GraphAwareToolProcessor:
         store.save(session)
         parent_id = parent_evt.id
 
-        # Get steps
-        steps = self.plan_executor.get_plan_steps(plan_node_id)
+        # Get steps (async-native!)
+        steps = await self.plan_executor.get_plan_steps(plan_node_id)
         if not steps:
             raise ValueError(f"No steps found for plan {plan_node_id}")
 
-        # Determine execution order
-        batches = self.plan_executor.determine_execution_order(steps)
+        # Determine execution order (async-native!)
+        batches = await self.plan_executor.determine_execution_order(steps)
         all_results: List[ToolResult] = []
 
         # Execute steps in batches

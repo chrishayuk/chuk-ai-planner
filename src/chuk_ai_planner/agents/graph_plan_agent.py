@@ -2,9 +2,9 @@
 from __future__ import annotations
 from typing import Any, Dict
 
-from chuk_ai_planner.planner import Plan
-from chuk_ai_planner.store.base import GraphStore
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.planner import Plan
+from chuk_ai_planner.core.store.base import GraphStore
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
 from .plan_agent import PlanAgent, _Validate  # ← your existing file
 
@@ -48,33 +48,33 @@ class GraphPlanAgent(PlanAgent):
         """
         json_plan: Dict[str, Any] = await super().plan(user_prompt)
 
-        # 1 — build the DSL tree
+        # 1 — build the DSL tree
         plan = Plan(json_plan["title"], graph=self._graph)
         for step in json_plan["steps"]:
             depends = [str(i) for i in step.get("depends_on", [])]
             plan.step(step["title"], after=depends).up()
-        plan_node_id = plan.save()
+        plan_node_id = await plan.save()
 
-        # 2 — attach *empty* ToolCall placeholders
-        #    (real args can be wired later by your processor)
-        from chuk_ai_planner.graph import ToolCall
-        from chuk_ai_planner.graph import EdgeType, GraphEdge
+        # 2 — attach ToolCall placeholders (async-native, Pydantic-native)
+        from chuk_ai_planner.core.graph import ToolCall, PlanStep, EdgeType, GraphEdge
 
-        idx2id = {
-            n.data["index"]: n.id
-            for n in self._graph.nodes.values()
-            if n.__class__.__name__ == "PlanStep"
-        }
+        # Build index-to-id map (only for InMemoryGraphStore)
+        idx2id = {}
+        if hasattr(self._graph, "nodes"):
+            idx2id = {
+                n.index: n.id
+                for n in self._graph.nodes.values()  # type: ignore
+                if isinstance(n, PlanStep)
+            }
 
         for idx, step in enumerate(json_plan["steps"], 1):
+            # Create ToolCall with proper typed fields (no dict goop!)
             tc = ToolCall(
-                data={
-                    "name": step["tool"],
-                    "args": step.get("args", {}),
-                }
+                name=step["tool"],
+                args=step.get("args", {}),
             )
-            self._graph.add_node(tc)
-            self._graph.add_edge(
+            await self._graph.add_node(tc)
+            await self._graph.add_edge(
                 GraphEdge(
                     kind=EdgeType.PLAN_LINK,
                     src=idx2id[str(idx)],

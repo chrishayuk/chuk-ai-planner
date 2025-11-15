@@ -1,0 +1,125 @@
+"""
+tests/test_plan.py
+==================
+
+Unit-tests for chuk_ai_planner.planner.plan.Plan
+"""
+
+import re
+import pytest
+from chuk_ai_planner.core.planner import Plan
+from chuk_ai_planner.core.graph import NodeType, PlanStep
+
+
+# --------------------------------------------------------------------- helpers
+def _step_nodes(plan: Plan):
+    """Return list of (<index>, PlanStep-node) tuples sorted by index."""
+    nodes = [
+        (n.index, n)  # Use typed field instead of .data dict
+        for n in plan.graph.nodes.values()
+        if isinstance(n, PlanStep) and n.kind == NodeType.PLAN_STEP
+    ]
+    return sorted(nodes, key=lambda t: tuple(int(p) for p in t[0].split(".")))
+
+
+# --------------------------------------------------------------------- tests
+@pytest.mark.asyncio
+async def test_simple_hierarchy_and_outline():
+    plan = (
+        Plan("Demo")
+        .step("Gather requirements")
+        .up()
+        .step("Draft design")
+        .up()
+        .step("Write code", after=["1", "2"])
+    )
+    out = plan.outline()
+
+    # indices & order in outline
+    assert re.search(r"^\s*1\s+Gather requirements", out, re.M)
+    assert re.search(r"^\s*2\s+Draft design", out, re.M)
+    assert re.search(r"^\s*3\s+Write code.*depends on \['1', '2'\]", out, re.M)
+
+    # await plan.save() should persist three PLAN_STEP nodes
+    plan_id = await plan.save()
+    steps = _step_nodes(plan)
+    assert len(steps) == 3
+    assert {idx for idx, _ in steps} == {"1", "2", "3"}
+    assert plan_id == plan.id
+
+
+@pytest.mark.asyncio
+async def test_add_step_runtime_and_persistence():
+    plan = Plan("Nested").step("Prepare").step("Step-A").up().up().step("Finish")
+
+    await plan.save()
+
+    # add new sub-step under "1" (Prepare)
+    idx = await plan.add_step("Step-B", parent="1", after=["1.1"])
+    assert idx == "1.2"  # correct hierarchical index
+
+    # graph now has 4 PlanStep nodes
+    steps = _step_nodes(plan)
+    assert len(steps) == 4
+    assert any(idx == "1.2" and node.description == "Step-B" for idx, node in steps)
+
+    # dependency persisted?
+    step_b = next(node for i, node in steps if i == "1.2")
+    assert step_b.index == "1.2"
+
+
+@pytest.mark.asyncio
+async def test_after_dependencies_are_stored():
+    plan = (
+        Plan("Deps")
+        .step("First")
+        .up()
+        .step("Second")
+        .up()
+        .step("Third", after=["1", "2"])
+    )
+    await plan.save()
+    third = next(node for idx, node in _step_nodes(plan) if idx == "3")
+    # Verify the step has correct index and description (no .data!)
+    assert third.index == "3"
+    assert third.description == "Third"
+
+
+@pytest.mark.asyncio
+async def test_add_step_with_invalid_parent_raises_error():
+    """Test that add_step raises ValueError for invalid parent index."""
+    plan = Plan("Test").step("First").up().step("Second")
+    await plan.save()
+
+    # Try to add a step with a non-existent parent
+    with pytest.raises(ValueError, match="Parent index '99' does not exist"):
+        await plan.add_step("Invalid", parent="99")
+
+
+@pytest.mark.asyncio
+async def test_nested_step_with_dependencies():
+    """Test nested steps with after dependencies (covers _persist.py line 111)"""
+    plan = Plan("Nested Deps")
+    plan.step("Parent")
+    plan.step("Child A")
+    plan.up()
+    plan.step("Child B", after=["1.1"])  # Child B depends on Child A
+    plan.up()
+
+    # Save and verify the dependency edges were created
+    await plan.save()
+
+    # Check that edges were created properly
+    from chuk_ai_planner.core.graph import StepEdge
+
+    # Get all edges and filter for StepEdge
+    all_edges = await plan.graph.get_edges()
+    edges = [e for e in all_edges if isinstance(e, StepEdge)]
+
+    # Should have at least one StepEdge for the dependency
+    assert len(edges) >= 1
+
+    steps = _step_nodes(plan)
+    assert len(steps) == 3
+    child_b = next(node for idx, node in steps if idx == "1.2")
+    assert child_b.description == "Child B"

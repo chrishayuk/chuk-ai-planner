@@ -342,14 +342,14 @@ def make_plan(store=None) -> UniversalPlan:
         result_variable="analysis",
         depends_on=[s1],
     )
-    s3 = plan.add_function_step(
+    plan.add_function_step(
         "Generate Weather Report",
         function="create_report",
         args={"analysis": "${analysis}"},
         result_variable="report",
         depends_on=[s2],
     )
-    s4 = plan.add_function_step(
+    plan.add_function_step(
         "Format Visualization Data",
         function="format_visualization",
         args={"weather_data": "${weather_data}", "analysis": "${analysis}"},

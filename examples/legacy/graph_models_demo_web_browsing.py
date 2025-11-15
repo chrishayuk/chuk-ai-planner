@@ -708,7 +708,7 @@ def analyze_browsing_workflow(graph, session, browsing_plan, steps, tools, task_
     # Data quality metrics
     extraction_quality = extraction_tool.data["result"]["data_quality_score"]
     filter_precision = filtering_tool.data["result"]["filter_accuracy"]
-    categorization_confidence = tools[5].data["result"]["categorization_results"]
+    tools[5].data["result"]["categorization_results"]
 
     print("\n🎯 Data Quality Metrics:")
     print(f"   Extraction quality: {extraction_quality:.1%}")
@@ -821,7 +821,7 @@ def demo_real_time_monitoring():
     print("=" * 60)
 
     # Simulate real-time status updates
-    current_time = datetime.now(timezone.utc)
+    datetime.now(timezone.utc)
 
     monitoring_data = {
         "session_status": "active",

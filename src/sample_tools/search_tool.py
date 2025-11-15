@@ -14,9 +14,10 @@ Install deps once:
 
 from __future__ import annotations
 import time
-import requests
+import requests  # type: ignore[import-untyped]
 import re
 from typing import Dict, List
+from urllib.parse import quote, unquote
 from bs4 import BeautifulSoup
 from chuk_tool_processor.registry.decorators import register_tool
 from chuk_tool_processor.models.validated_tool import ValidatedTool
@@ -37,7 +38,7 @@ class SearchTool(ValidatedTool):
     # ----------------------------------------------------------------
     @staticmethod
     def _search_ddg_html(query: str, max_results: int) -> List[Dict]:
-        url = "https://duckduckgo.com/html/?q=" + requests.utils.quote(query)
+        url = "https://duckduckgo.com/html/?q=" + quote(query)
         html = requests.get(
             url,
             headers={"User-Agent": "Mozilla/5.0 (a2a-demo/1.0)"},
@@ -57,8 +58,11 @@ class SearchTool(ValidatedTool):
 
             # duckduckgo rewrites URLs; clean them up a bit
             href = url_tag["href"]
+            if not isinstance(href, str):
+                # href might be a list in BeautifulSoup
+                href = str(href) if href else ""
             href = re.sub(r"^/l/\\?uddg=", "", href)
-            href = requests.utils.unquote(href)
+            href = unquote(href)
 
             hits.append(
                 {

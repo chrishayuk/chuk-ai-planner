@@ -9,7 +9,7 @@ functionality to support in-depth research.
 """
 
 import re
-import requests
+import requests  # type: ignore[import-untyped]
 from urllib.parse import urlparse
 
 
@@ -82,7 +82,6 @@ async def register_enhanced_tools(processor, tools_dict, search_tool, visit_url_
         url = args.get("url", "")
 
         # Create a modified version that returns more content
-        original_url = url
         print(f"🌐 Visiting URL: {url}")
 
         # Check if URL is usable

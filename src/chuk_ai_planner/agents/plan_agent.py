@@ -61,9 +61,12 @@ class PlanAgent:
         rsp = await self._client.chat.completions.create(
             model=self.model,
             temperature=self.temperature,
-            messages=messages,
+            messages=messages,  # type: ignore[arg-type]
         )
-        return rsp.choices[0].message.content
+        content = rsp.choices[0].message.content
+        if content is None:
+            raise ValueError("LLM returned no content")
+        return content
 
     # ---------------------------------------------------------------- public
     async def plan(self, user_prompt: str) -> Dict[str, Any]:
@@ -98,9 +101,12 @@ class PlanAgent:
                     return plan  # ✓
 
             # prepare corrective message
+            error_list = record["errors"]
+            if not isinstance(error_list, list):
+                error_list = [str(error_list)]
             prompt = (
                 "Your previous JSON was invalid:\n"
-                + "\n".join(f"- {e}" for e in record["errors"])
+                + "\n".join(f"- {e}" for e in error_list)
                 + "\nPlease return a *complete* corrected JSON plan."
             )
 

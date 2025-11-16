@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 """
-examples/universal_minimal_demo.py
+examples/12_universal_plan_intro.py
 A minimal example of using UniversalPlan and UniversalExecutor
 """
 
-import argparse
 import asyncio
 import logging
 
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -31,7 +30,7 @@ def summarize_function():
 
 
 # Main function
-async def run_demo(topic):
+async def run_demo(topic="UniversalPlan"):
     """Run a minimal demo of UniversalPlan and UniversalExecutor."""
     logger.info(f"🚀 Starting minimal demo for: {topic}")
 
@@ -50,7 +49,7 @@ async def run_demo(topic):
     )
 
     # Add a simple step
-    s1 = plan.add_tool_step(
+    s1 = await plan.add_tool_step(
         title="Say hello",
         tool="hello",
         args={"name": topic},
@@ -100,14 +99,10 @@ async def run_demo(topic):
         traceback.print_exc()
 
 
-# CLI interface
-def main():
-    parser = argparse.ArgumentParser(description="Minimal UniversalPlan Demo")
-    parser.add_argument("name", help="Name to greet")
-    args = parser.parse_args()
-
-    asyncio.run(run_demo(args.name))
+async def main():
+    """Run the minimal UniversalPlan demo."""
+    await run_demo()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

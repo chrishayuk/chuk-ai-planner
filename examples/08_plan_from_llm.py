@@ -24,10 +24,10 @@ from datetime import datetime
 from typing import Any, Dict
 
 # Import the original Plan implementation
-from chuk_ai_planner.planner import Plan, PlanExecutor
-from chuk_ai_planner.graph import ToolCall, NodeType
-from chuk_ai_planner.graph import GraphEdge, EdgeType
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.planner import Plan, PlanExecutor
+from chuk_ai_planner.core.graph import ToolCall, NodeType
+from chuk_ai_planner.core.graph import PlanLinkEdge, StepEdge
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
 # Session management
 from chuk_session_manager.models.session import Session, SessionEvent
@@ -294,8 +294,8 @@ async def call_llm_live(task: str) -> Dict[str, Any]:
 
         # Call the API
         resp = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.2,  # Lower temperature for more structured output
+            model="gpt-5-mini",
+            temperature=1.0,  # Required for gpt-5-mini (only supported value)
             messages=[
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": task},
@@ -383,7 +383,7 @@ async def call_llm_sim(task: str) -> Dict[str, Any]:
 
 
 # -------------------------------------------------------------------- Plan conversion
-def convert_to_plan(llm_json: Dict[str, Any]) -> tuple[Plan, str, Dict[int, str]]:
+async def convert_to_plan(llm_json: Dict[str, Any]) -> tuple[Plan, str, Dict[int, str]]:
     """Convert LLM-generated JSON to a Plan using the original DSL."""
     # Create a new plan with custom graph store
     graph_store = InMemoryGraphStore()
@@ -408,7 +408,7 @@ def convert_to_plan(llm_json: Dict[str, Any]) -> tuple[Plan, str, Dict[int, str]
         plan.step(title).up()
 
     # Save the plan to generate step IDs
-    plan_id = plan.save()
+    plan_id = await plan.save()
 
     # Get all plan steps to create the mapping
     steps = []
@@ -417,7 +417,7 @@ def convert_to_plan(llm_json: Dict[str, Any]) -> tuple[Plan, str, Dict[int, str]
             steps.append(node)
 
     # Sort by index to match our step order
-    steps.sort(key=lambda n: int(n.data.get("index", "0")))
+    steps.sort(key=lambda n: int(n.index))
 
     # Create mapping from LLM step index to actual step ID
     for i, step in enumerate(steps, 1):
@@ -434,14 +434,12 @@ def convert_to_plan(llm_json: Dict[str, Any]) -> tuple[Plan, str, Dict[int, str]
             dep_id = step_id_map.get(dep_idx)
             if dep_id:
                 # Add step order edge
-                plan.graph.add_edge(
-                    GraphEdge(kind=EdgeType.STEP_ORDER, src=dep_id, dst=step_id)
-                )
+                await plan.graph.add_edge(StepEdge(src=dep_id, dst=step_id))
 
     return plan, plan_id, step_id_map
 
 
-def add_tool_calls_to_plan(
+async def add_tool_calls_to_plan(
     plan: Plan, llm_json: Dict[str, Any], step_id_map: Dict[int, str]
 ) -> None:
     """Add tool calls to plan steps based on LLM JSON."""
@@ -456,13 +454,11 @@ def add_tool_calls_to_plan(
 
         if tool_name:
             # Create tool call node
-            tool_call = ToolCall(data={"name": tool_name, "args": tool_args})
-            plan.graph.add_node(tool_call)
+            tool_call = ToolCall(name=tool_name, args=tool_args)
+            await plan.graph.add_node(tool_call)
 
             # Link step to tool call
-            plan.graph.add_edge(
-                GraphEdge(kind=EdgeType.PLAN_LINK, src=step_id, dst=tool_call.id)
-            )
+            await plan.graph.add_edge(PlanLinkEdge(src=step_id, dst=tool_call.id))
 
 
 # -------------------------------------------------------------------- main flow
@@ -516,13 +512,13 @@ async def main(live: bool = False) -> None:
     # Step 2: Convert to Plan
     print("\n🔄 STEP 2: CONVERTING TO PLAN DSL...\n")
     try:
-        plan, plan_id, step_id_map = convert_to_plan(llm_json)
+        plan, plan_id, step_id_map = await convert_to_plan(llm_json)
 
         print("Plan Structure (before tool calls):")
         print(plan.outline())
 
         # Add tool calls to the plan
-        add_tool_calls_to_plan(plan, llm_json, step_id_map)
+        await add_tool_calls_to_plan(plan, llm_json, step_id_map)
 
         print("\nPlan conversion completed!")
         print(f"- Plan ID: {plan_id}")
@@ -556,15 +552,15 @@ async def main(live: bool = False) -> None:
     print("\n📊 STEP 4: ANALYZING PLAN STRUCTURE...\n")
 
     # Get plan steps
-    steps = executor.get_plan_steps(plan_id)
+    steps = await executor.get_plan_steps(plan_id)
     print(f"Found {len(steps)} plan steps:")
     for step in steps:
-        index = step.data.get("index")
-        desc = step.data.get("description")
+        index = step.index
+        desc = step.description
         print(f"  {index}: {desc} (id: {step.id[:8]})")
 
     # Determine execution order
-    batches = executor.determine_execution_order(steps)
+    batches = await executor.determine_execution_order(steps)
     print(f"\nExecution will proceed in {len(batches)} batches:")
     for i, batch in enumerate(batches, 1):
         print(f"  Batch {i}: {len(batch)} steps")
@@ -572,8 +568,8 @@ async def main(live: bool = False) -> None:
             # Find step by ID
             step = next((s for s in steps if s.id == step_id), None)
             if step:
-                index = step.data.get("index")
-                desc = step.data.get("description")
+                index = step.index
+                desc = step.description
                 print(f"    {index}: {desc}")
 
     # Step 5: Execute the plan

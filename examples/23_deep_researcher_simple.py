@@ -4,7 +4,6 @@ examples/universal_deep_researcher_simple.py
 A simplified version of the deep-research tool using UniversalPlan.
 """
 
-import argparse
 import asyncio
 import logging
 from dataclasses import dataclass
@@ -16,8 +15,8 @@ from dotenv import load_dotenv
 #  Imports from the planner package                                           #
 # --------------------------------------------------------------------------- #
 
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
 
 load_dotenv()
 
@@ -136,7 +135,7 @@ async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
     )
 
     # Step 1: search
-    s1 = plan.add_tool_step(
+    s1 = await plan.add_tool_step(
         title=f"Search for {topic}",
         tool="search",
         args={"query": topic},
@@ -144,7 +143,7 @@ async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
     )
 
     # Step 2: summarize
-    plan.add_function_step(
+    await plan.add_function_step(
         title=f"Summarize findings about {topic}",
         function="summarize",
         args={},  # summary uses global docs
@@ -153,7 +152,7 @@ async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
     )
 
     # Persist the plan (optional)
-    plan.save()
+    await plan.save()
     logger.info(f"Plan created:\n{plan.outline()}")
 
     # Execute the plan
@@ -204,16 +203,12 @@ async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
 # --------------------------------------------------------------------------- #
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Simple Deep Research Tool")
-    parser.add_argument("topic", help="Topic to research")
-    parser.add_argument("--results", type=int, default=5, help="Maximum search results")
-    parser.add_argument("--rounds", type=int, default=1, help="Research rounds")
-    args = parser.parse_args()
-
-    config = ResearchConfig(max_results=args.results, max_rounds=args.rounds)
-    asyncio.run(research_topic(args.topic, config))
+async def main() -> None:
+    """Run the simple deep research demo."""
+    topic = "artificial intelligence"
+    config = ResearchConfig(max_results=5, max_rounds=1)
+    await research_topic(topic, config)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

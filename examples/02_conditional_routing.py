@@ -12,7 +12,9 @@ This example demonstrates conditional routing in plans:
 Key Takeaway: Build dynamic workflows with conditional logic.
 """
 
-from chuk_ai_planner.graph import (
+import asyncio
+
+from chuk_ai_planner.core.graph import (
     PlanNode,
     PlanStep,
     RouterStep,
@@ -20,11 +22,11 @@ from chuk_ai_planner.graph import (
     StepEdge,
     RouteEdge,
 )
-from chuk_ai_planner.graph.types import NodeType, EdgeType, RouterType
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.graph.types import NodeType, EdgeType, RouterType
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
 
-def main():
+async def main():
     print("=" * 70)
     print("Conditional Routing Example")
     print("=" * 70)
@@ -37,13 +39,13 @@ def main():
         description="Route content based on quality score",
         variables={"quality_threshold": 0.7},
     )
-    graph.add_node(plan)
+    await graph.add_node(plan)
     print(f"\n✅ Created Plan: {plan.title}")
 
     # 2. Create analysis step
     analyze_step = PlanStep(description="Analyze content quality", index="1")
-    graph.add_node(analyze_step)
-    graph.add_edge(ParentChildEdge(src=plan.id, dst=analyze_step.id))
+    await graph.add_node(analyze_step)
+    await graph.add_edge(ParentChildEdge(src=plan.id, dst=analyze_step.id))
     print(f"✅ Created Step 1: {analyze_step.description}")
 
     # 3. Create Router Step with typed fields (no data dict!)
@@ -57,9 +59,9 @@ def main():
             False: "low_quality",  # If condition is false
         },
     )
-    graph.add_node(router)
-    graph.add_edge(ParentChildEdge(src=plan.id, dst=router.id))
-    graph.add_edge(StepEdge(src=analyze_step.id, dst=router.id))
+    await graph.add_node(router)
+    await graph.add_edge(ParentChildEdge(src=plan.id, dst=router.id))
+    await graph.add_edge(StepEdge(src=analyze_step.id, dst=router.id))
     print("\n✅ Created Router:")
     print(f"   Type: {router.router_type}")  # RouterType.EXPRESSION
     print(f"   Condition: {router.condition}")
@@ -67,10 +69,10 @@ def main():
 
     # 4. Create High Quality Path
     publish_step = PlanStep(description="Publish immediately", index="2a")
-    graph.add_node(publish_step)
+    await graph.add_node(publish_step)
 
     # Create RouteEdge with typed fields
-    graph.add_edge(
+    await graph.add_edge(
         RouteEdge(
             src=router.id,
             dst=publish_step.id,
@@ -81,9 +83,9 @@ def main():
 
     # 5. Create Low Quality Path
     revise_step = PlanStep(description="Send for revision", index="2b")
-    graph.add_node(revise_step)
+    await graph.add_node(revise_step)
 
-    graph.add_edge(
+    await graph.add_edge(
         RouteEdge(
             src=router.id,
             dst=revise_step.id,
@@ -95,8 +97,8 @@ def main():
 
     # 6. Add follow-up step after revision
     reanalyze_step = PlanStep(description="Re-analyze revised content", index="3")
-    graph.add_node(reanalyze_step)
-    graph.add_edge(StepEdge(src=revise_step.id, dst=reanalyze_step.id))
+    await graph.add_node(reanalyze_step)
+    await graph.add_edge(StepEdge(src=revise_step.id, dst=reanalyze_step.id))
     print(f"✅ Follow-up: {reanalyze_step.description}")
 
     # 7. Query the Graph Structure
@@ -105,16 +107,16 @@ def main():
     print("=" * 70)
 
     # Find all routes from router
-    routes = graph.get_edges(src=router.id, kind=EdgeType.ROUTE)
+    routes = await graph.get_edges(src=router.id, kind=EdgeType.ROUTE)
     print(f"\n📊 Router has {len(routes)} routes:")
     for edge in routes:
-        target = graph.get_node(edge.dst)
+        target = await graph.get_node(edge.dst)
         print(f"   → {edge.route_key}: {target.description}")
         if edge.is_default:
             print("      (default route)")
 
     # Find router steps
-    routers = graph.get_nodes_by_kind(NodeType.ROUTER_STEP)
+    routers = await graph.get_nodes_by_kind(NodeType.ROUTER_STEP)
     print(f"\n📊 Found {len(routers)} router step(s)")
     for r in routers:
         print(f"   Router: {r.description}")
@@ -163,4 +165,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

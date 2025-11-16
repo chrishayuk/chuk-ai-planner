@@ -12,13 +12,107 @@ import ast
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from chuk_ai_planner.core.graph import GraphEdge, RouterStep
 from chuk_ai_planner.core.graph.types import EdgeType, RouterType
 from chuk_ai_planner.core.store.base import GraphStore
 
-__all__ = ["RoutingExecutor", "RoutingDecision"]
+__all__ = ["RoutingExecutor", "RoutingDecision", "FunctionRegistry"]
+
+
+class FunctionRegistry:
+    """
+    Registry for routing functions.
+
+    Allows registration of custom functions for function-based routing.
+
+    Example
+    -------
+    >>> registry = FunctionRegistry()
+    >>>
+    >>> @registry.register("priority")
+    >>> def calculate_priority(context: Dict[str, Any]) -> str:
+    ...     score = context.get("urgency", 0)
+    ...     return "urgent" if score > 7 else "normal"
+    >>>
+    >>> result = registry.call("priority", {"urgency": 8})
+    >>> print(result)  # "urgent"
+    """
+
+    def __init__(self):
+        self._functions: Dict[str, Callable] = {}
+
+    def register(self, name: str):
+        """
+        Decorator to register a function.
+
+        Parameters
+        ----------
+        name : str
+            Name to register the function under
+
+        Returns
+        -------
+        Callable
+            Decorator function
+        """
+
+        def decorator(func: Callable) -> Callable:
+            self._functions[name] = func
+            return func
+
+        return decorator
+
+    def add(self, name: str, func: Callable) -> None:
+        """
+        Manually add a function to the registry.
+
+        Parameters
+        ----------
+        name : str
+            Name to register under
+        func : Callable
+            Function to register
+        """
+        self._functions[name] = func
+
+    def call(self, name: str, context: Dict[str, Any]) -> Any:
+        """
+        Call a registered function.
+
+        Parameters
+        ----------
+        name : str
+            Name of the function
+        context : Dict[str, Any]
+            Context to pass to function
+
+        Returns
+        -------
+        Any
+            Result from function
+
+        Raises
+        ------
+        ValueError
+            If function not found
+        """
+        if name not in self._functions:
+            raise ValueError(
+                f"Function '{name}' not found in registry. "
+                f"Available: {list(self._functions.keys())}"
+            )
+
+        return self._functions[name](context)
+
+    def has(self, name: str) -> bool:
+        """Check if function is registered."""
+        return name in self._functions
+
+    def list(self) -> List[str]:
+        """List all registered function names."""
+        return list(self._functions.keys())
 
 
 @dataclass
@@ -63,7 +157,11 @@ class RoutingExecutor:
     >>> print(f"Chosen route: {decision.route_key}")
     """
 
-    def __init__(self, graph_store: GraphStore):
+    def __init__(
+        self,
+        graph_store: GraphStore,
+        function_registry: Optional[FunctionRegistry] = None,
+    ):
         """
         Initialize the routing executor.
 
@@ -71,8 +169,11 @@ class RoutingExecutor:
         ----------
         graph_store : GraphStore
             Graph store containing the plan
+        function_registry : Optional[FunctionRegistry]
+            Registry of routing functions. If None, creates empty registry.
         """
         self.graph = graph_store
+        self.function_registry = function_registry or FunctionRegistry()
 
     async def evaluate_route(
         self,
@@ -352,14 +453,22 @@ Your choice:"""
                 f"Function router {router_step.id} missing 'router_function'"
             )
 
-        # If router_function is a string, it should be a reference to a registered function
+        # If router_function is a string, look it up in the registry
         if isinstance(router_function, str):
-            raise NotImplementedError(
-                f"Function routing by name not yet implemented: {router_function}"
-            )
+            if not self.function_registry.has(router_function):
+                raise ValueError(
+                    f"Function '{router_function}' not found in registry. "
+                    f"Available: {self.function_registry.list()}"
+                )
+            try:
+                result = self.function_registry.call(router_function, context)
+            except Exception as e:
+                raise ValueError(
+                    f"Router function '{router_function}' failed: {e}"
+                ) from e
 
-        # If it's a callable, execute it
-        if callable(router_function):
+        # If it's a callable, execute it directly
+        elif callable(router_function):
             try:
                 result = router_function(context)
             except Exception as e:
@@ -514,7 +623,7 @@ Your choice:"""
         """
         Call an LLM to get a routing decision.
 
-        This is a placeholder that should be replaced with actual LLM integration.
+        Uses OpenAI by default, falls back to mock for testing.
 
         Parameters
         ----------
@@ -528,7 +637,43 @@ Your choice:"""
         str
             LLM response (route key)
         """
-        raise NotImplementedError(
-            "LLM routing requires LLM provider integration. "
-            "Please implement _call_llm() with your LLM provider."
-        )
+        try:
+            import openai
+            import os
+
+            # Get API key from environment
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise ValueError(
+                    "OPENAI_API_KEY not found in environment. "
+                    "Set it to use LLM-based routing."
+                )
+
+            # Create OpenAI client
+            client = openai.AsyncOpenAI(api_key=api_key)
+
+            # Call the API
+            response = await client.chat.completions.create(
+                model="gpt-5-mini",  # Fast, cheap model for routing
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=1.0,  # Required for gpt-5-mini (only supported value)
+                max_tokens=50,  # Just need the route key
+            )
+
+            # Extract the response
+            content = response.choices[0].message.content
+            if content is None:
+                raise ValueError("LLM returned empty response")
+            result = content.strip()
+            return result
+
+        except ImportError:
+            raise NotImplementedError(
+                "LLM routing requires 'openai' package. "
+                "Install it with: pip install openai"
+            )
+        except Exception as e:
+            raise ValueError(f"LLM call failed: {e}") from e

@@ -18,9 +18,10 @@ import os
 import json
 import shutil
 from typing import List
+import asyncio
 
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.plan_registry import PlanRegistry
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.plan_registry import PlanRegistry
 
 # Create a temporary directory for the registry
 REGISTRY_DIR = "temp_registry"
@@ -29,7 +30,7 @@ if os.path.exists(REGISTRY_DIR):
 os.makedirs(REGISTRY_DIR)
 
 
-def create_research_plan(
+async def create_research_plan(
     title: str, description: str, tags: List[str], query: str
 ) -> UniversalPlan:
     """Create a research plan with the given parameters"""
@@ -47,7 +48,7 @@ def create_research_plan(
     plan.step("Initial Research")
 
     # Add a search step
-    search_step_id = plan.add_tool_step(
+    search_step_id = await plan.add_tool_step(
         title="Search for information",
         tool="search",
         args={"query": query},
@@ -55,7 +56,7 @@ def create_research_plan(
     )
 
     # Add an analysis step
-    analysis_step_id = plan.add_function_step(
+    analysis_step_id = await plan.add_function_step(
         title="Analyze results",
         function="analyze_content",
         args={"content": "${search_results}"},
@@ -64,7 +65,7 @@ def create_research_plan(
     )
 
     # Add a summarization step
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Generate summary",
         function="generate_summary",
         args={"analysis": "${analysis}"},
@@ -75,13 +76,13 @@ def create_research_plan(
     return plan
 
 
-def main():
+async def main():
     # Create a registry
     registry = PlanRegistry(storage_dir=REGISTRY_DIR)
     print(f"Created PlanRegistry in {REGISTRY_DIR}")
 
     # Create several research plans
-    plans = [
+    plans = await asyncio.gather(
         create_research_plan(
             title="Climate Impact Research",
             description="Research on climate change impacts",
@@ -106,19 +107,19 @@ def main():
             tags=["climate", "adaptation", "strategy"],
             query="climate change adaptation strategies",
         ),
-    ]
+    )
 
     # Register all plans
     print("\n\n=== Registering Plans ===")
     plan_ids = []
     for plan in plans:
-        plan_id = registry.register_plan(plan)
+        plan_id = await registry.register_plan(plan)
         plan_ids.append(plan_id)
         print(f"Registered plan: {plan.title} (ID: {plan_id})")
 
     # Retrieve a plan by ID
     print("\n\n=== Retrieving Plan by ID ===")
-    retrieved_plan = registry.get_plan(plan_ids[0])
+    retrieved_plan = await registry.get_plan(plan_ids[0])
     if retrieved_plan:
         print(f"Retrieved plan: {retrieved_plan.title}")
         print(f"Description: {retrieved_plan.description}")
@@ -131,21 +132,21 @@ def main():
 
     # Find plans by tags
     print("\n\n=== Finding Plans by Tags ===")
-    climate_plans = registry.find_plans(tags=["climate"])
+    climate_plans = await registry.find_plans(tags=["climate"])
     print(f"Found {len(climate_plans)} plans with 'climate' tag:")
     for plan in climate_plans:
         print(f"- {plan.title} (ID: {plan.id})")
 
     # Find plans by title
     print("\n\n=== Finding Plans by Title ===")
-    ai_plans = registry.find_plans(title_contains="AI")
+    ai_plans = await registry.find_plans(title_contains="AI")
     print(f"Found {len(ai_plans)} plans with 'AI' in title:")
     for plan in ai_plans:
         print(f"- {plan.title} (ID: {plan.id})")
 
     # Find plans by both criteria
     print("\n\n=== Finding Plans by Tags and Title ===")
-    climate_adaptation_plans = registry.find_plans(
+    climate_adaptation_plans = await registry.find_plans(
         tags=["climate"], title_contains="Adaptation"
     )
     print(
@@ -156,7 +157,7 @@ def main():
 
     # Get all plans
     print("\n\n=== Getting All Plans ===")
-    all_plans = registry.get_all_plans()
+    all_plans = await registry.get_all_plans()
     print(f"Registry contains {len(all_plans)} plans:")
     for plan in all_plans:
         print(f"- {plan.title} (ID: {plan.id})")
@@ -168,20 +169,20 @@ def main():
     print(f"Deleted plan {plan_to_delete}: {success}")
 
     # Verify deletion
-    remaining_plans = registry.get_all_plans()
+    remaining_plans = await registry.get_all_plans()
     print(f"Registry now contains {len(remaining_plans)} plans")
 
     # Demonstrate persistence by creating a new registry instance
     print("\n\n=== Testing Persistence ===")
     new_registry = PlanRegistry(storage_dir=REGISTRY_DIR)
-    loaded_plans = new_registry.get_all_plans()
+    loaded_plans = await new_registry.get_all_plans()
     print(f"New registry instance loaded {len(loaded_plans)} plans from disk:")
     for plan in loaded_plans:
         print(f"- {plan.title} (ID: {plan.id})")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 
     # Clean up
     print(f"\nCleaning up {REGISTRY_DIR}")

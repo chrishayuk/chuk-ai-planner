@@ -21,10 +21,10 @@ from datetime import datetime
 from typing import Any, Dict
 
 # Core imports
-from chuk_ai_planner.planner import Plan, PlanExecutor
-from chuk_ai_planner.graph import ToolCall, NodeType
-from chuk_ai_planner.graph import GraphEdge, EdgeType
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.planner import Plan, PlanExecutor
+from chuk_ai_planner.core.graph import ToolCall, NodeType
+from chuk_ai_planner.core.graph import GraphEdge, EdgeType
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
 # Session management
 from chuk_session_manager.models.session import Session, SessionEvent
@@ -183,7 +183,7 @@ class ToolRegistry:
 
 
 # --------------------------------------------------------------------------- Plan Creation
-def create_demo_plan() -> tuple[Plan, str]:
+async def create_demo_plan() -> tuple[Plan, str]:
     """Create a demo plan with multiple steps and dependencies"""
 
     # Create plan with custom graph store
@@ -209,76 +209,65 @@ def create_demo_plan() -> tuple[Plan, str]:
     plan.up()
 
     # Save the plan to generate IDs and structure
-    plan_id = plan.save()
+    plan_id = await plan.save()
 
     return plan, plan_id
 
 
-def add_tool_calls_to_plan(plan: Plan) -> Dict[str, str]:
+async def add_tool_calls_to_plan(plan: Plan) -> Dict[str, str]:
     """Add tool calls to plan steps and return step_id -> tool mapping"""
 
     # Get all plan steps
     steps = []
-    for node in plan.graph.nodes.values():
+    for node_id in plan.graph.nodes:
+        node = await plan.graph.get_node(node_id)
         if node.kind == NodeType.PLAN_STEP:
             steps.append(node)
 
     # Sort by index to match our plan structure
-    steps.sort(key=lambda n: n.data.get("index", ""))
+    steps.sort(key=lambda n: getattr(n, "index", ""))
 
     step_tools = {}
 
     for i, step in enumerate(steps):
         step_id = step.id
-        index = step.data.get("index")
+        index = getattr(step, "index", None)
 
         # Create appropriate tool call based on step
         if index == "1":  # NYC weather
-            tool_call = ToolCall(
-                data={"name": "weather", "args": {"location": "New York"}}
-            )
+            tool_call = ToolCall(name="weather", args={"location": "New York"})
             step_tools[step_id] = "weather (NYC)"
 
         elif index == "2":  # London weather
-            tool_call = ToolCall(
-                data={"name": "weather", "args": {"location": "London"}}
-            )
+            tool_call = ToolCall(name="weather", args={"location": "London"})
             step_tools[step_id] = "weather (London)"
 
         elif index == "3":  # Temperature calculation
             tool_call = ToolCall(
-                data={
-                    "name": "calculator",
-                    "args": {
-                        "operation": "add",
-                        "a": 72,
-                        "b": -62,
-                    },  # NYC - London (mock)
-                }
+                name="calculator",
+                args={
+                    "operation": "add",
+                    "a": 72,
+                    "b": -62,
+                },  # NYC - London (mock)
             )
             step_tools[step_id] = "calculator"
 
         elif index == "4":  # Climate search
             tool_call = ToolCall(
-                data={
-                    "name": "search",
-                    "args": {
-                        "query": "climate temperature differences New York London"
-                    },
-                }
+                name="search",
+                args={"query": "climate temperature differences New York London"},
             )
             step_tools[step_id] = "search"
 
         elif index == "5":  # Summary calculation
             tool_call = ToolCall(
-                data={
-                    "name": "calculator",
-                    "args": {
-                        "operation": "multiply",
-                        "a": 2,
-                        "b": 3,
-                    },  # Mock summary calc
-                }
+                name="calculator",
+                args={
+                    "operation": "multiply",
+                    "a": 2,
+                    "b": 3,
+                },  # Mock summary calc
             )
             step_tools[step_id] = "calculator (summary)"
 
@@ -286,8 +275,8 @@ def add_tool_calls_to_plan(plan: Plan) -> Dict[str, str]:
             continue
 
         # Add tool call to graph and link to step
-        plan.graph.add_node(tool_call)
-        plan.graph.add_edge(
+        await plan.graph.add_node(tool_call)
+        await plan.graph.add_edge(
             GraphEdge(kind=EdgeType.PLAN_LINK, src=step_id, dst=tool_call.id)
         )
 
@@ -302,7 +291,7 @@ async def main():
 
     # 1. Create plan
     print("\n📋 STEP 1: CREATING PLAN...")
-    plan, plan_id = create_demo_plan()
+    plan, plan_id = await create_demo_plan()
 
     print(f"Plan created with ID: {plan_id}")
     print("\nPlan structure:")
@@ -310,7 +299,7 @@ async def main():
 
     # 2. Add tool calls
     print("\n🔧 STEP 2: ADDING TOOL CALLS...")
-    step_tools = add_tool_calls_to_plan(plan)
+    step_tools = await add_tool_calls_to_plan(plan)
 
     print("Tool calls added:")
     for step_id, tool_desc in step_tools.items():
@@ -326,17 +315,17 @@ async def main():
 
     # 4. Get plan steps
     print("\n📊 STEP 4: ANALYZING PLAN STRUCTURE...")
-    steps = executor.get_plan_steps(plan_id)
+    steps = await executor.get_plan_steps(plan_id)
 
     print(f"Found {len(steps)} plan steps:")
     for step in steps:
-        index = step.data.get("index")
-        desc = step.data.get("description")
+        index = step.index
+        desc = step.description
         print(f"  {index}: {desc} (id: {step.id[:8]})")
 
     # 5. Determine execution order
     print("\n🔄 STEP 5: DETERMINING EXECUTION ORDER...")
-    batches = executor.determine_execution_order(steps)
+    batches = await executor.determine_execution_order(steps)
 
     print(f"Execution will proceed in {len(batches)} batches:")
     for i, batch in enumerate(batches, 1):
@@ -345,8 +334,8 @@ async def main():
             # Find step by ID
             step = next((s for s in steps if s.id == step_id), None)
             if step:
-                index = step.data.get("index")
-                desc = step.data.get("description")
+                index = step.index
+                desc = step.description
                 print(f"    {index}: {desc}")
 
     # 6. Execute plan

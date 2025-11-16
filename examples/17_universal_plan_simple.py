@@ -15,8 +15,8 @@ import json
 import pprint
 from typing import Any, Dict
 
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
 
 
 # --------------------------------------------------------------------------- custom tools / fns
@@ -141,7 +141,7 @@ def format_visualization_function(**kwargs) -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- plan factory
-def create_weather_analysis_plan() -> UniversalPlan:
+async def create_weather_analysis_plan() -> UniversalPlan:
     """Create a weather analysis plan with proper variable flow."""
     plan = UniversalPlan(
         title="Global Weather Analysis",
@@ -154,7 +154,7 @@ def create_weather_analysis_plan() -> UniversalPlan:
     plan.set_variable("target_cities", target_cities)
 
     # Step 1: Collect weather data
-    collect_step = plan.add_tool_step(
+    collect_step = await plan.add_tool_step(
         title="Collect Weather Data",
         tool="batch_weather",
         args={"locations": target_cities},
@@ -162,7 +162,7 @@ def create_weather_analysis_plan() -> UniversalPlan:
     )
 
     # Step 2: Analyze the data
-    analyze_step = plan.add_function_step(
+    analyze_step = await plan.add_function_step(
         title="Analyze Weather Data",
         function="analyze_weather",
         args={"weather_data": "${weather_data}"},
@@ -171,7 +171,7 @@ def create_weather_analysis_plan() -> UniversalPlan:
     )
 
     # Step 3: Generate report
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Generate Weather Report",
         function="create_report",
         args={"analysis": "${analysis}"},
@@ -180,7 +180,7 @@ def create_weather_analysis_plan() -> UniversalPlan:
     )
 
     # Step 4: Format visualization data (parallel with report)
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Format Visualization Data",
         function="format_visualization",
         args={"weather_data": "${weather_data}", "analysis": "${analysis}"},
@@ -206,7 +206,7 @@ async def main():
     executor.register_function("format_visualization", format_visualization_function)
 
     # Create the weather analysis plan
-    plan = create_weather_analysis_plan()
+    plan = await create_weather_analysis_plan()
 
     print(f"\n📋 Created plan: {plan.title}")
     print(f"📋 Plan ID: {plan.id}")

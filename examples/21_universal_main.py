@@ -17,8 +17,8 @@ import asyncio
 import pprint
 from typing import Dict, Any
 
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
 
 
 # ============================================================================
@@ -518,7 +518,7 @@ Category Distribution:
 # ============================================================================
 
 
-def create_sudoku_plan() -> UniversalPlan:
+async def create_sudoku_plan() -> UniversalPlan:
     """Create a Sudoku solving plan"""
     plan = UniversalPlan(
         title="Complete Sudoku Solver",
@@ -527,7 +527,7 @@ def create_sudoku_plan() -> UniversalPlan:
     )
 
     # Step 1: Parse the puzzle
-    parse_step = plan.add_tool_step(
+    parse_step = await plan.add_tool_step(
         title="Parse Sudoku puzzle",
         tool="sudoku_parse",
         args={"puzzle": "${puzzle}"},
@@ -535,7 +535,7 @@ def create_sudoku_plan() -> UniversalPlan:
     )
 
     # Step 2: Validate the puzzle
-    validate_step = plan.add_function_step(
+    validate_step = await plan.add_function_step(
         title="Validate puzzle format",
         function="validate_sudoku",
         args={"parse_result": "${parse_result}"},
@@ -544,7 +544,7 @@ def create_sudoku_plan() -> UniversalPlan:
     )
 
     # Step 3: Apply solving techniques
-    technique_step = plan.add_tool_step(
+    technique_step = await plan.add_tool_step(
         title="Apply solving techniques",
         tool="sudoku_technique",
         args={"grid": "${parse_result.grid}", "technique": "naked_single"},
@@ -553,7 +553,7 @@ def create_sudoku_plan() -> UniversalPlan:
     )
 
     # Step 4: Apply backtracking if needed
-    backtrack_step = plan.add_tool_step(
+    backtrack_step = await plan.add_tool_step(
         title="Apply backtracking algorithm",
         tool="sudoku_backtrack",
         args={"grid": "${technique_result.new_grid}"},
@@ -562,7 +562,7 @@ def create_sudoku_plan() -> UniversalPlan:
     )
 
     # Step 5: Format the solution
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Format solution",
         function="format_sudoku",
         args={"solution": "${solution_result.solution}"},
@@ -573,7 +573,7 @@ def create_sudoku_plan() -> UniversalPlan:
     return plan
 
 
-def create_flight_booking_plan() -> UniversalPlan:
+async def create_flight_booking_plan() -> UniversalPlan:
     """Create a flight booking plan"""
     plan = UniversalPlan(
         title="Complete Flight Booking Process",
@@ -582,7 +582,7 @@ def create_flight_booking_plan() -> UniversalPlan:
     )
 
     # Step 1: Validate travel dates
-    validate_step = plan.add_tool_step(
+    validate_step = await plan.add_tool_step(
         title="Validate travel dates",
         tool="validate_dates",
         args={"departure_date": "${departure_date}", "return_date": "${return_date}"},
@@ -590,7 +590,7 @@ def create_flight_booking_plan() -> UniversalPlan:
     )
 
     # Step 2: Search for flights
-    search_step = plan.add_tool_step(
+    search_step = await plan.add_tool_step(
         title="Search available flights",
         tool="search_flights",
         args={
@@ -604,7 +604,7 @@ def create_flight_booking_plan() -> UniversalPlan:
     )
 
     # Step 3: Filter flights
-    filter_step = plan.add_function_step(
+    filter_step = await plan.add_function_step(
         title="Filter flights by preferences",
         function="filter_flights",
         args={
@@ -616,7 +616,7 @@ def create_flight_booking_plan() -> UniversalPlan:
     )
 
     # Step 4: Calculate pricing
-    pricing_step = plan.add_function_step(
+    pricing_step = await plan.add_function_step(
         title="Calculate pricing",
         function="calculate_pricing",
         args={"filtered_results": "${filtered_results}", "passengers": "${passengers}"},
@@ -625,7 +625,7 @@ def create_flight_booking_plan() -> UniversalPlan:
     )
 
     # Step 5: Book the flight
-    plan.add_tool_step(
+    await plan.add_tool_step(
         title="Book selected flight",
         tool="book_flight",
         args={"pricing": "${pricing_results}", "passenger_info": "${passenger_info}"},
@@ -636,7 +636,7 @@ def create_flight_booking_plan() -> UniversalPlan:
     return plan
 
 
-def create_data_analysis_plan() -> UniversalPlan:
+async def create_data_analysis_plan() -> UniversalPlan:
     """Create a data analysis plan"""
     plan = UniversalPlan(
         title="Complete Data Analysis Pipeline",
@@ -645,7 +645,7 @@ def create_data_analysis_plan() -> UniversalPlan:
     )
 
     # Step 1: Load data
-    load_step = plan.add_tool_step(
+    load_step = await plan.add_tool_step(
         title="Load data from source",
         tool="load_data",
         args={"source": "${data_source}", "parameters": "${load_parameters}"},
@@ -653,7 +653,7 @@ def create_data_analysis_plan() -> UniversalPlan:
     )
 
     # Step 2: Clean data
-    clean_step = plan.add_function_step(
+    clean_step = await plan.add_function_step(
         title="Clean and preprocess data",
         function="clean_data",
         args={"load_result": "${load_result}"},
@@ -662,7 +662,7 @@ def create_data_analysis_plan() -> UniversalPlan:
     )
 
     # Step 3: Analyze data
-    analyze_step = plan.add_function_step(
+    analyze_step = await plan.add_function_step(
         title="Perform statistical analysis",
         function="analyze_data",
         args={"clean_result": "${clean_result}"},
@@ -671,7 +671,7 @@ def create_data_analysis_plan() -> UniversalPlan:
     )
 
     # Step 4: Generate report
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Generate analysis report",
         function="generate_report",
         args={"analysis_result": "${analysis_result}"},
@@ -714,7 +714,7 @@ async def run_sudoku_demo(executor: UniversalExecutor):
     print(formatted_puzzle)
 
     # Create and execute the plan
-    plan = create_sudoku_plan()
+    plan = await create_sudoku_plan()
     print(f"\n📋 Executing plan: {plan.title}")
 
     result = await executor.execute_plan(plan, {"puzzle": puzzle})
@@ -764,7 +764,7 @@ async def run_flight_booking_demo(executor: UniversalExecutor):
     print(f"   Max Price: ${booking_data['user_profile']['preferences']['max_price']}")
 
     # Create and execute the plan
-    plan = create_flight_booking_plan()
+    plan = await create_flight_booking_plan()
     print(f"\n📋 Executing plan: {plan.title}")
 
     result = await executor.execute_plan(plan, booking_data)
@@ -810,7 +810,7 @@ async def run_data_analysis_demo(executor: UniversalExecutor):
     print(f"   Parameters: {analysis_params['load_parameters']}")
 
     # Create and execute the plan
-    plan = create_data_analysis_plan()
+    plan = await create_data_analysis_plan()
     print(f"\n📋 Executing plan: {plan.title}")
 
     result = await executor.execute_plan(plan, analysis_params)

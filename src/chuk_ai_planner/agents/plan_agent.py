@@ -16,7 +16,7 @@ Typical usage
     agent = PlanAgent(
         system_prompt=SYS_MSG,
         validate_step=my_validator,
-        model="gpt-4o-mini",
+        model="gpt-5-mini",
     )
     plan_dict = await agent.plan("user request")
 """
@@ -44,8 +44,8 @@ class PlanAgent:
         *,
         system_prompt: str,
         validate_step: _Validate,
-        model: str = "gpt-4o-mini",
-        temperature: float = 0.3,
+        model: str = "gpt-5-mini",
+        temperature: float = 1.0,
         max_retries: int = 3,
     ):
         self.system_prompt = textwrap.dedent(system_prompt).strip()
@@ -58,10 +58,11 @@ class PlanAgent:
 
     # ---------------------------------------------------------------- private
     async def _chat(self, messages: List[Dict[str, str]]) -> str:
-        rsp = await self._client.chat.completions.create(
+        rsp = await self._client.chat.completions.create(  # type: ignore[call-overload]
             model=self.model,
             temperature=self.temperature,
             messages=messages,  # type: ignore[arg-type]
+            response_format={"type": "json_object"},  # Force JSON output
         )
         content = rsp.choices[0].message.content
         if content is None:

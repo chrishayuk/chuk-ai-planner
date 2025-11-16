@@ -108,8 +108,8 @@ async def call_llm(prompt: str) -> Dict[str, Any]:
 
     client = AsyncOpenAI()
     resp = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.3,
+        model="gpt-5-mini",
+        temperature=1.0,  # Required for gpt-5-mini (only supported value)
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": prompt},

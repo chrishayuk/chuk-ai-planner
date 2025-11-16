@@ -1,0 +1,92 @@
+{
+  "title": "Multi-Source Data Analysis Report",
+  "timestamp": "2025-11-16 01:50:55",
+  "summary": "weather: Average temperature: 72.5\u00b0F across 4 cities\nstocks: Average price change: 0.52%, Biggest gainer: AMZN\nnews: Analyzed 4 news items across 4 categories",
+  "insights": [
+    {
+      "data_type": "weather",
+      "insights": [
+        {
+          "type": "average",
+          "metric": "temperature",
+          "value": 72.5
+        },
+        {
+          "type": "distribution",
+          "metric": "conditions",
+          "value": {
+            "Rainy": 1,
+            "Foggy": 1,
+            "Cloudy": 1,
+            "Partly Cloudy": 1
+          }
+        }
+      ]
+    },
+    {
+      "data_type": "stocks",
+      "insights": [
+        {
+          "type": "average",
+          "metric": "price_change",
+          "value": 0.52
+        },
+        {
+          "type": "extreme",
+          "metric": "biggest_gainer",
+          "value": {
+            "symbol": "AMZN",
+            "price": 152.11,
+            "change": 5.01
+          }
+        },
+        {
+          "type": "extreme",
+          "metric": "biggest_loser",
+          "value": {
+            "symbol": "MSFT",
+            "price": 345.2,
+            "change": -5.59
+          }
+        }
+      ]
+    },
+    {
+      "data_type": "news",
+      "insights": [
+        {
+          "type": "distribution",
+          "metric": "sentiment",
+          "value": {
+            "Neutral": 2,
+            "Negative": 2
+          }
+        },
+        {
+          "type": "distribution",
+          "metric": "categories",
+          "value": {
+            "Technology": 1,
+            "Finance": 1,
+            "Science": 1,
+            "Sports": 1
+          }
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "title": "Analysis of weather Data",
+      "content": "Average temperature: 72.5\u00b0F across 4 cities"
+    },
+    {
+      "title": "Analysis of stocks Data",
+      "content": "Average price change: 0.52%, Biggest gainer: AMZN"
+    },
+    {
+      "title": "Analysis of news Data",
+      "content": "Analyzed 4 news items across 4 categories"
+    }
+  ]
+}

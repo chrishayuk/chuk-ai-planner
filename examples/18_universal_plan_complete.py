@@ -23,9 +23,9 @@ import pprint
 from typing import Any, Dict
 
 # Universal plan imports
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
 
 # ───────────────────── Simple Tool Implementations ─────────────────
@@ -148,7 +148,7 @@ async def analyzer_tool(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ───────────────────── Create Proper Universal Plan ───────────────
-def create_working_plan() -> UniversalPlan:
+async def create_working_plan() -> UniversalPlan:
     """Create a Universal Plan with correct flat structure"""
     print("🟢 Creating Universal Plan with correct structure...")
 
@@ -174,28 +174,28 @@ def create_working_plan() -> UniversalPlan:
     print(f"   - search_query: {plan.variables['search_query']}")
 
     # Add steps using the direct method to avoid nesting
-    step1_id = plan.add_tool_step(
+    step1_id = await plan.add_tool_step(
         title="Get Weather Data",
         tool="weather",
         args={"location": "${target_city}"},
         result_variable="weather_info",
     )
 
-    step2_id = plan.add_tool_step(
+    step2_id = await plan.add_tool_step(
         title="Perform Calculation",
         tool="calculator",
         args={"operation": "multiply", "a": "${num_a}", "b": "${num_b}"},
         result_variable="calc_info",
     )
 
-    step3_id = plan.add_tool_step(
+    step3_id = await plan.add_tool_step(
         title="Search Information",
         tool="search",
         args={"query": "${search_query}"},
         result_variable="search_info",
     )
 
-    step4_id = plan.add_tool_step(
+    step4_id = await plan.add_tool_step(
         title="Analyze Results",
         tool="analyzer",
         args={"weather_data": "${weather_info}", "calculation_result": "${calc_info}"},
@@ -318,7 +318,7 @@ async def main():
     print("=" * 50)
 
     # Create plan
-    plan = create_working_plan()
+    plan = await create_working_plan()
 
     # Execute plan
     result = await execute_with_logging(plan)

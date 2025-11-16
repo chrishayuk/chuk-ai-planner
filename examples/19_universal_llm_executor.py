@@ -23,12 +23,12 @@ from typing import Any, Dict
 from types import MappingProxyType
 
 # Import the official UniversalPlan implementation
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
 
 # Import necessary graph components
-from chuk_ai_planner.graph import ToolCall
-from chuk_ai_planner.graph import GraphEdge, EdgeType
+from chuk_ai_planner.core.graph import ToolCall
+from chuk_ai_planner.core.graph import GraphEdge, EdgeType
 
 # For LLM simulation or live LLM calls
 from dotenv import load_dotenv
@@ -47,7 +47,7 @@ def make_json_serializable(obj: Any) -> Any:
     """Convert potentially frozen data structures to JSON-serializable format."""
     try:
         # Try to import _ReadOnlyList if it exists
-        from chuk_ai_planner.graph.types import _ReadOnlyList
+        from chuk_ai_planner.core.graph.types import _ReadOnlyList
     except ImportError:
         # If not available, create a dummy class that will never match
         class _ReadOnlyList:
@@ -236,8 +236,8 @@ async def call_llm_live(task: str) -> Dict[str, Any]:
 
         # Call the API
         resp = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.2,  # Lower temperature for more structured output
+            model="gpt-5-mini",
+            temperature=1.0,  # Required for gpt-5-mini (only supported value)
             messages=[
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": task},
@@ -325,7 +325,7 @@ async def call_llm_sim(task: str) -> Dict[str, Any]:
 
 
 # -------------------------------------------------------------------- Plan conversion
-def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
+async def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
     """Convert LLM-generated JSON to a UniversalPlan."""
     # Create a new universal plan
     plan = UniversalPlan(
@@ -344,15 +344,12 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
     # First pass: Create all steps without tool links
     for i, step_data in enumerate(llm_json["steps"], 1):
         title = step_data["title"]
-        step_index = plan.add_step(title, parent=None)
+        step_index = await plan.add_step(title, parent=None)
 
         # Get the step node
         step_id = None
         for node in plan._graph.nodes.values():
-            if (
-                node.__class__.__name__ == "PlanStep"
-                and node.data.get("index") == step_index
-            ):
+            if node.__class__.__name__ == "PlanStep" and node.index == step_index:
                 step_id = node.id
                 break
 
@@ -371,14 +368,14 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
 
         if tool:
             # Create and link tool call
-            tool_call = ToolCall(data={"name": tool, "args": args})
-            plan._graph.add_node(tool_call)
-            plan._graph.add_edge(
+            tool_call = ToolCall(name=tool, args=args, result_variable=f"result_{i}")
+            await plan._graph.add_node(tool_call)
+            await plan._graph.add_edge(
                 GraphEdge(kind=EdgeType.PLAN_LINK, src=step_id, dst=tool_call.id)
             )
 
             # Store result variable using a custom edge
-            plan._graph.add_edge(
+            await plan._graph.add_edge(
                 GraphEdge(
                     kind=EdgeType.CUSTOM,
                     src=step_id,
@@ -391,12 +388,12 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
         for dep_idx in step_data.get("depends_on", []):
             dep_id = step_ids.get(dep_idx)
             if dep_id:
-                plan._graph.add_edge(
+                await plan._graph.add_edge(
                     GraphEdge(kind=EdgeType.STEP_ORDER, src=dep_id, dst=step_id)
                 )
 
     # Save the plan
-    plan.save()
+    await plan.save()
     return plan
 
 
@@ -451,7 +448,7 @@ async def main(live: bool = False) -> None:
     # Step 2: Convert to UniversalPlan
     print("\n🔄 STEP 2: CONVERTING TO UNIVERSAL PLAN...\n")
     try:
-        plan = convert_to_universal_plan(llm_json)
+        plan = await convert_to_universal_plan(llm_json)
 
         print("\nUniversal Plan Structure:")
         print(plan.outline())
@@ -470,31 +467,35 @@ async def main(live: bool = False) -> None:
         for node in plan._graph.nodes.values():
             if node.__class__.__name__ == "PlanStep":
                 step_info = {
-                    "index": node.data.get("index"),
-                    "title": node.data.get("description"),
+                    "index": node.index,
+                    "title": node.description,
                     "tool_calls": [],
                 }
 
                 # Find tool calls
-                for edge in plan._graph.get_edges(src=node.id, kind=EdgeType.PLAN_LINK):
-                    tool_node = plan._graph.get_node(edge.dst)
+                edges = await plan._graph.get_edges(
+                    src=node.id, kind=EdgeType.PLAN_LINK
+                )
+                for edge in edges:
+                    tool_node = await plan._graph.get_node(edge.dst)
                     if tool_node and tool_node.__class__.__name__ == "ToolCall":
                         tool_call_info = {
-                            "name": tool_node.data.get("name"),
+                            "name": tool_node.name,
                             "args": make_json_serializable(
-                                tool_node.data.get("args", {})
+                                tool_node.args
                             ),  # Use helper function
                         }
                         step_info["tool_calls"].append(tool_call_info)
 
                 # Find dependencies
                 dependencies = []
-                for edge in plan._graph.get_edges(
+                dep_edges = await plan._graph.get_edges(
                     dst=node.id, kind=EdgeType.STEP_ORDER
-                ):
-                    dep_node = plan._graph.get_node(edge.src)
+                )
+                for edge in dep_edges:
+                    dep_node = await plan._graph.get_node(edge.src)
                     if dep_node:
-                        dependencies.append(dep_node.data.get("index"))
+                        dependencies.append(dep_node.index)
 
                 if dependencies:
                     step_info["depends_on"] = dependencies

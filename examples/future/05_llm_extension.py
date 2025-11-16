@@ -11,8 +11,10 @@ This example demonstrates using LLM-specific nodes:
 Key Takeaway: Core graph is domain-agnostic, extensions add domain-specific nodes.
 """
 
+import asyncio
+
 # Core graph imports (domain-agnostic)
-from chuk_ai_planner.graph import (
+from chuk_ai_planner.core.graph import (
     SessionNode,
     PlanNode,
     PlanStep,
@@ -22,16 +24,16 @@ from chuk_ai_planner.graph import (
 )
 
 # LLM-specific extension imports
-from chuk_ai_planner.graph.nodes.llm import (
+from chuk_ai_planner.core.graph.nodes.llm import (
     UserMessage,
     AssistantMessage,
     SystemMessage,
 )
 
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
 
-def main():
+async def main():
     print("=" * 70)
     print("LLM Extension Example")
     print("=" * 70)
@@ -44,15 +46,15 @@ def main():
     session = SessionNode(
         name="Weather Query Conversation", description="User asking about weather"
     )
-    graph.add_node(session)
+    await graph.add_node(session)
     print(f"\n✅ Created Session: {session.name}")
 
     # 2. System Message (LLM extension!)
     system_msg = SystemMessage(
         content="You are a helpful weather assistant.", role="system"
     )
-    graph.add_node(system_msg)
-    graph.add_edge(ParentChildEdge(src=session.id, dst=system_msg.id))
+    await graph.add_node(system_msg)
+    await graph.add_edge(ParentChildEdge(src=session.id, dst=system_msg.id))
     print(f"\n🤖 System Message: {system_msg.content}")
     print(f"   Type: {system_msg.kind}")  # "system_message"
     print("   This is an LLM extension node!")
@@ -61,9 +63,9 @@ def main():
     user_msg = UserMessage(
         content="What's the weather in New York?", role="user", user_id="user123"
     )
-    graph.add_node(user_msg)
-    graph.add_edge(ParentChildEdge(src=session.id, dst=user_msg.id))
-    graph.add_edge(NextEdge(src=system_msg.id, dst=user_msg.id))
+    await graph.add_node(user_msg)
+    await graph.add_edge(ParentChildEdge(src=session.id, dst=user_msg.id))
+    await graph.add_edge(NextEdge(src=system_msg.id, dst=user_msg.id))
     print(f"\n👤 User Message: {user_msg.content}")
     print(f"   User ID: {user_msg.user_id}")
     print("   This is an LLM extension node!")
@@ -72,8 +74,8 @@ def main():
     plan = PlanNode(
         title="Weather Research Plan", description="Fetch and summarize NYC weather"
     )
-    graph.add_node(plan)
-    graph.add_edge(ParentChildEdge(src=session.id, dst=plan.id))
+    await graph.add_node(plan)
+    await graph.add_edge(ParentChildEdge(src=session.id, dst=plan.id))
     print(f"\n📋 Created Plan: {plan.title}")
     print("   This is a core graph node!")
 
@@ -81,16 +83,16 @@ def main():
     step1 = PlanStep(description="Fetch weather data", index="1")
     step2 = PlanStep(description="Summarize findings", index="2")
 
-    graph.add_node(step1)
-    graph.add_node(step2)
-    graph.add_edge(ParentChildEdge(src=plan.id, dst=step1.id))
-    graph.add_edge(ParentChildEdge(src=plan.id, dst=step2.id))
+    await graph.add_node(step1)
+    await graph.add_node(step2)
+    await graph.add_edge(ParentChildEdge(src=plan.id, dst=step1.id))
+    await graph.add_edge(ParentChildEdge(src=plan.id, dst=step2.id))
 
     # 6. Tool Call for step 1 (core node)
     weather_tool = ToolCall(
         name="get_weather", args={"city": "New York", "units": "fahrenheit"}
     )
-    graph.add_node(weather_tool)
+    await graph.add_node(weather_tool)
 
     # 7. Assistant Message with tool call (LLM extension!)
     assistant_msg = AssistantMessage(
@@ -105,9 +107,9 @@ def main():
         ],
         model="gpt-4",
     )
-    graph.add_node(assistant_msg)
-    graph.add_edge(ParentChildEdge(src=session.id, dst=assistant_msg.id))
-    graph.add_edge(NextEdge(src=user_msg.id, dst=assistant_msg.id))
+    await graph.add_node(assistant_msg)
+    await graph.add_edge(ParentChildEdge(src=session.id, dst=assistant_msg.id))
+    await graph.add_edge(NextEdge(src=user_msg.id, dst=assistant_msg.id))
 
     print(f"\n🤖 Assistant Message: {assistant_msg.content}")
     print(f"   Model: {assistant_msg.model}")
@@ -121,10 +123,10 @@ def main():
 
     # Core nodes
     print("\n📊 Core Graph Nodes:")
-    print(f"   Sessions: {len(graph.get_nodes_by_kind('session'))}")
-    print(f"   Plans: {len(graph.get_nodes_by_kind('plan'))}")
-    print(f"   Steps: {len(graph.get_nodes_by_kind('plan_step'))}")
-    print(f"   Tools: {len(graph.get_nodes_by_kind('tool_call'))}")
+    print(f"   Sessions: {len(await graph.get_nodes_by_kind('session'))}")
+    print(f"   Plans: {len(await graph.get_nodes_by_kind('plan'))}")
+    print(f"   Steps: {len(await graph.get_nodes_by_kind('plan_step'))}")
+    print(f"   Tools: {len(await graph.get_nodes_by_kind('tool_call'))}")
 
     # LLM extension nodes
     print("\n📊 LLM Extension Nodes:")
@@ -144,11 +146,11 @@ def main():
     print("=" * 70)
 
     print("\n✨ Core Graph (domain-agnostic):")
-    print("   from chuk_ai_planner.graph import PlanNode, PlanStep")
+    print("   from chuk_ai_planner.core.graph import PlanNode, PlanStep")
     print("   → Works for ANY planning domain")
 
     print("\n✨ LLM Extension:")
-    print("   from chuk_ai_planner.graph.nodes.llm import UserMessage")
+    print("   from chuk_ai_planner.core.graph.nodes.llm import UserMessage")
     print("   → Adds chat/LLM-specific nodes")
 
     print("\n✨ Future Extensions:")
@@ -167,4 +169,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

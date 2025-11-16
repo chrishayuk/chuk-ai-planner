@@ -23,8 +23,8 @@ import json
 import pprint
 from typing import Any, Dict
 
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
 
 
 # --------------------------------------------------------------------------- custom tools / fns
@@ -302,7 +302,7 @@ def format_visualization_function(**kwargs) -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- plan factory
-def make_plan(store=None) -> UniversalPlan:
+async def make_plan(store=None) -> UniversalPlan:
     """
     Create a weather analysis plan.
 
@@ -326,37 +326,37 @@ def make_plan(store=None) -> UniversalPlan:
     # Define the target cities directly in the plan
     target_cities = ["New York", "London", "Tokyo", "Sydney", "Cairo"]
     plan.set_variable("target_cities", target_cities)
-    plan.save()
+    await plan.save()
 
     # Add steps with dependencies
-    s1 = plan.add_tool_step(
+    s1 = await plan.add_tool_step(
         "Collect Weather Data",
         tool="batch_weather",
         args={"locations": target_cities},  # Direct reference
         result_variable="weather_data",
     )
-    s2 = plan.add_function_step(
+    s2 = await plan.add_function_step(
         "Analyze Weather Data",
         function="analyze_weather",
         args={"weather_data": "${weather_data}"},
         result_variable="analysis",
         depends_on=[s1],
     )
-    plan.add_function_step(
+    await plan.add_function_step(
         "Generate Weather Report",
         function="create_report",
         args={"analysis": "${analysis}"},
         result_variable="report",
         depends_on=[s2],
     )
-    plan.add_function_step(
+    await plan.add_function_step(
         "Format Visualization Data",
         function="format_visualization",
         args={"weather_data": "${weather_data}", "analysis": "${analysis}"},
         result_variable="viz",
         depends_on=[s2],
     )
-    plan.save()
+    await plan.save()
     return plan
 
 
@@ -369,7 +369,7 @@ async def main():
     executor = UniversalExecutor()
 
     # Create plan
-    plan = make_plan(executor.graph_store)
+    plan = await make_plan(executor.graph_store)
 
     # Register tools / functions
     executor.register_tool("batch_weather", batch_weather_tool)

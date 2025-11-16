@@ -27,8 +27,8 @@ import time
 from typing import Dict, List, Any, Optional
 from types import MappingProxyType
 
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
 
 
 # ---- JSON Serialization Helper ----
@@ -416,7 +416,7 @@ def generate_report_function(**kwargs) -> Dict[str, Any]:
 # ---- Plan Creation Functions ----
 
 
-def create_data_processing_subplan(data_type: str) -> UniversalPlan:
+async def create_data_processing_subplan(data_type: str) -> UniversalPlan:
     """Create a subplan for processing a specific type of data"""
     # Create subplan with its own graph store to avoid conflicts
     plan = UniversalPlan(
@@ -432,7 +432,7 @@ def create_data_processing_subplan(data_type: str) -> UniversalPlan:
 
     # Add steps
     # 1. Retrieve data
-    retrieve_step_id = plan.add_tool_step(
+    retrieve_step_id = await plan.add_tool_step(
         title=f"Retrieve {data_type} data",
         tool="data_source",
         args={"source": data_type},
@@ -440,7 +440,7 @@ def create_data_processing_subplan(data_type: str) -> UniversalPlan:
     )
 
     # 2. Clean data
-    clean_step_id = plan.add_function_step(
+    clean_step_id = await plan.add_function_step(
         title=f"Clean {data_type} data",
         function="clean_data",
         args={"data": "${source_data}"},
@@ -449,7 +449,7 @@ def create_data_processing_subplan(data_type: str) -> UniversalPlan:
     )
 
     # 3. Analyze data
-    analyze_step_id = plan.add_function_step(
+    analyze_step_id = await plan.add_function_step(
         title=f"Analyze {data_type} data",
         function="analyze",
         args={
@@ -461,7 +461,7 @@ def create_data_processing_subplan(data_type: str) -> UniversalPlan:
     )
 
     # Add data type to analysis result for identification in parent plan
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Add metadata to result",
         function="add_metadata",
         args={"data": "${analysis_result}", "metadata": {"data_type": data_type}},
@@ -470,12 +470,12 @@ def create_data_processing_subplan(data_type: str) -> UniversalPlan:
     )
 
     # Save the plan
-    plan.save()
+    await plan.save()
 
     return plan
 
 
-def create_main_plan(subplan_ids: Dict[str, str]) -> UniversalPlan:
+async def create_main_plan(subplan_ids: Dict[str, str]) -> UniversalPlan:
     """Create the main plan that coordinates subplans"""
     # Create main plan with its own graph store
     plan = UniversalPlan(
@@ -494,7 +494,7 @@ def create_main_plan(subplan_ids: Dict[str, str]) -> UniversalPlan:
 
     # Add steps for each subplan - use add_tool_step with subplan tool
     for data_type, subplan_id in subplan_ids.items():
-        step_id = plan.add_tool_step(
+        step_id = await plan.add_tool_step(
             title=f"Process {data_type} data",
             tool="subplan",
             args={"plan_id": subplan_id, "args": {}},
@@ -503,7 +503,7 @@ def create_main_plan(subplan_ids: Dict[str, str]) -> UniversalPlan:
         subplan_step_ids[data_type] = step_id
 
     # Add step to combine analysis results - use proper dependency format
-    combine_step_id = plan.add_function_step(
+    combine_step_id = await plan.add_function_step(
         title="Combine analysis results",
         function="combine_results",
         args={
@@ -520,7 +520,7 @@ def create_main_plan(subplan_ids: Dict[str, str]) -> UniversalPlan:
     )
 
     # Add step to generate report
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Generate comprehensive report",
         function="generate_report",
         args={"analysis_results": "${combined_results}"},
@@ -529,7 +529,7 @@ def create_main_plan(subplan_ids: Dict[str, str]) -> UniversalPlan:
     )
 
     # Save the plan to ensure all steps are properly indexed
-    plan.save()
+    await plan.save()
 
     return plan
 
@@ -611,14 +611,15 @@ async def subplan_execution_tool(
         print("🔄 Copying subplan graph nodes and edges...")
         for node in subplan.graph.nodes.values():
             if node.id not in executor.graph_store.nodes:
-                executor.graph_store.add_node(node)
-        for edge in subplan.graph.edges:
+                await executor.graph_store.add_node(node)
+        edges = await subplan.graph.get_edges()
+        for edge in edges:
             # Check if edge already exists to avoid duplicates
-            existing_edges = executor.graph_store.get_edges(
+            existing_edges = await executor.graph_store.get_edges(
                 src=edge.src, dst=edge.dst, kind=edge.kind
             )
             if not any(e.id == edge.id for e in existing_edges):
-                executor.graph_store.add_edge(edge)
+                await executor.graph_store.add_edge(edge)
 
     # Execute the subplan with a clean variable context
     result = await executor.execute_plan(subplan, variables=subplan_args)
@@ -674,13 +675,13 @@ async def main():
     subplan_ids = {}
 
     for data_type in ["weather", "stocks", "news"]:
-        subplan = create_data_processing_subplan(data_type)
+        subplan = await create_data_processing_subplan(data_type)
         subplan_id = registry.register_plan(subplan)
         subplan_ids[data_type] = subplan_id
         print(f"- Created {data_type} processing subplan (ID: {subplan_id[:8]})")
 
     # Create the main plan
-    main_plan = create_main_plan(subplan_ids)
+    main_plan = await create_main_plan(subplan_ids)
     main_plan_id = registry.register_plan(main_plan)
     print(f"- Created main plan (ID: {main_plan_id[:8]})")
 
@@ -702,8 +703,8 @@ async def main():
     print(f"🔍 Found {len(steps)} plan steps in graph store")
 
     for step in steps:
-        step_title = step.data.get("description", "No title")
-        step_index = step.data.get("index", "No index")
+        step_title = step.description
+        step_index = step.index
         print(f"🔍 Step {step_index}: {step_title} (ID: {step.id[:8]})")
 
         # Check for tool calls linked to this step
@@ -712,7 +713,7 @@ async def main():
             if edge.kind.value == "plan_link":
                 tool_node = executor.graph_store.get_node(edge.dst)
                 if tool_node and tool_node.kind.value == "tool_call":
-                    tool_name = tool_node.data.get("name", "unknown")
+                    tool_name = tool_node.name
                     tool_calls.append(tool_name)
         print(f"🔍   Tool calls: {tool_calls}")
 
@@ -722,7 +723,7 @@ async def main():
             if edge.kind.value == "step_order":
                 dep_node = executor.graph_store.get_node(edge.src)
                 if dep_node:
-                    dependencies.append(dep_node.data.get("index", "unknown"))
+                    dependencies.append(dep_node.index)
         print(f"🔍   Dependencies: {dependencies}")
 
     results = await executor.execute_plan(main_plan)

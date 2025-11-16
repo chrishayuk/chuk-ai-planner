@@ -1,0 +1,73 @@
+[
+  {
+    "id": "8b91fa94-d9d1-4abc-93b8-ad4298dcc07d",
+    "result": {
+      "status": "success",
+      "message": "Beans ground successfully to a medium-fine consistency"
+    },
+    "success": true
+  },
+  {
+    "id": "172799ae-5ed9-49ec-b31b-e0eb1bb8576c",
+    "result": {
+      "status": "success",
+      "message": "Water boiled to 200\u00b0F, perfect for brewing coffee"
+    },
+    "success": true
+  },
+  {
+    "id": "6d1dac34-9848-4ffa-94da-a08bbc1aca68",
+    "result": {
+      "status": "success",
+      "message": "Coffee brewed perfectly, strong aroma and rich taste"
+    },
+    "success": true
+  },
+  {
+    "id": "fcc8da8a-eba3-487d-95f8-e2454f8d4f63",
+    "result": {
+      "calculation": "235.5 multiply 18.75",
+      "answer": 4415.625
+    },
+    "success": true
+  },
+  {
+    "id": "37c6ba63-1d14-4da4-8bed-a78e88cbcc17",
+    "result": {
+      "status": "success",
+      "message": "Coffee station cleaned and ready for next use"
+    },
+    "success": true
+  },
+  {
+    "id": "f789755f-4505-4c82-a70d-2eefae3c0fdd",
+    "result": {
+      "temperature": 72,
+      "conditions": "Partly cloudy",
+      "humidity": 65
+    },
+    "success": true
+  },
+  {
+    "id": "3fec9af8-ff33-4d53-bd0f-2ad0c1640231",
+    "result": {
+      "query": "climate change adaptation",
+      "results": [
+        {
+          "title": "Top result for climate change adaptation",
+          "url": "https://example.com/climate-change-adaptation"
+        },
+        {
+          "title": "Research on climate change adaptation",
+          "url": "https://research.com/climate_change_adaptation"
+        },
+        {
+          "title": "Guide to climate change adaptation",
+          "url": "https://guide.com/climate-change-adaptation"
+        }
+      ],
+      "count": 3
+    },
+    "success": true
+  }
+]

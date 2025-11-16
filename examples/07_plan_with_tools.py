@@ -18,10 +18,10 @@ import json
 from typing import Any, Dict
 
 # chuk_ai_planner imports
-from chuk_ai_planner.store.memory import InMemoryGraphStore
-from chuk_ai_planner.graph import GraphNode, NodeType
-from chuk_ai_planner.graph import EdgeType, GraphEdge, ParentChildEdge
-from chuk_ai_planner.planner.plan_executor import PlanExecutor
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.graph import PlanNode, PlanStep, ToolCall as PlanToolCall
+from chuk_ai_planner.core.graph import ParentChildEdge, PlanLinkEdge
+from chuk_ai_planner.core.planner.plan_executor import PlanExecutor
 from chuk_ai_planner.utils.pretty import clr, pretty_print_plan, PlanRunLogger
 
 # chuk_tool_processor imports (proper API)
@@ -157,29 +157,29 @@ async def build_plan():
     print(clr("🟢  BUILD GRAPH\n", "1;32"))
 
     g = InMemoryGraphStore()
-    plan = GraphNode(kind=NodeType.PLAN, data={"description": "Daily helper"})
-    g.add_node(plan)
+    plan = PlanNode(
+        title="Daily helper", description="A plan to execute daily helper tasks"
+    )
+    await g.add_node(plan)
 
-    def add_step(idx: str, desc: str) -> GraphNode:
-        node = GraphNode(
-            kind=NodeType.PLAN_STEP, data={"index": idx, "description": desc}
-        )
-        g.add_node(node)
-        g.add_edge(ParentChildEdge(src=plan.id, dst=node.id))
+    async def add_step(idx: str, desc: str) -> PlanStep:
+        node = PlanStep(description=desc, index=idx)
+        await g.add_node(node)
+        await g.add_edge(ParentChildEdge(src=plan.id, dst=node.id))
         return node
 
-    s1 = add_step("1", "Check weather in New York")
-    s2 = add_step("2", "Multiply 235.5 × 18.75")
-    s3 = add_step("3", "Search climate-adaptation info")
+    s1 = await add_step("1", "Check weather in New York")
+    s2 = await add_step("2", "Multiply 235.5 × 18.75")
+    s3 = await add_step("3", "Search climate-adaptation info")
 
-    def link(step: GraphNode, name: str, args: dict) -> None:
-        call = GraphNode(kind=NodeType.TOOL_CALL, data={"name": name, "args": args})
-        g.add_node(call)
-        g.add_edge(GraphEdge(kind=EdgeType.PLAN_LINK, src=step.id, dst=call.id))
+    async def link(step: PlanStep, name: str, args: dict) -> None:
+        call = PlanToolCall(name=name, args=args)
+        await g.add_node(call)
+        await g.add_edge(PlanLinkEdge(src=step.id, dst=call.id))
 
-    link(s1, "weather", {"location": "New York"})
-    link(s2, "calculator", {"operation": "multiply", "a": 235.5, "b": 18.75})
-    link(s3, "search", {"query": "climate change adaptation"})
+    await link(s1, "weather", {"location": "New York"})
+    await link(s2, "calculator", {"operation": "multiply", "a": 235.5, "b": 18.75})
+    await link(s3, "search", {"query": "climate change adaptation"})
 
     pretty_print_plan(g, plan)
     print()
@@ -189,7 +189,7 @@ async def build_plan():
 
 # ───────────────────── executor + logger ───────────────────────────
 async def execute_plan(g, plan, tool_wrapper):
-    logger = PlanRunLogger(g, plan.id)
+    logger = PlanRunLogger()
     px = PlanExecutor(g)
 
     # Small semaphore so the demo doesn't hammer tools in parallel
@@ -209,8 +209,8 @@ async def execute_plan(g, plan, tool_wrapper):
     print(clr("🛠  EXECUTE", "1;34"))
 
     results: list[dict] = []
-    steps = px.get_plan_steps(plan.id)
-    batches = px.determine_execution_order(steps)
+    steps = await px.get_plan_steps(plan.id)
+    batches = await px.determine_execution_order(steps)
 
     print("📊 Plan analysis:")
     print(f"   - {len(steps)} steps found")

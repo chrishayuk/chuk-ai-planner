@@ -8,13 +8,14 @@ Example of creating a research plan using the enhanced UniversalPlan class
 without involving the executor or other components.
 """
 
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.graph import EdgeType
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.graph import EdgeType
+import asyncio
 
 import json
 
 
-def create_research_plan() -> UniversalPlan:
+async def create_research_plan() -> UniversalPlan:
     """Create a comprehensive research plan using UniversalPlan"""
     # Create the main research plan
     plan = UniversalPlan(
@@ -37,7 +38,7 @@ def create_research_plan() -> UniversalPlan:
     # Add steps directly with tool/function/subplan calls
 
     # Add search steps for climate impact data
-    plan.add_tool_step(
+    await plan.add_tool_step(
         title="Search for climate impact data",
         tool="search",
         args={"query": "climate change impact coastal cities data"},
@@ -45,7 +46,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add search steps for scientific papers
-    plan.add_tool_step(
+    await plan.add_tool_step(
         title="Search for scientific papers",
         tool="search",
         args={
@@ -55,7 +56,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add function step to extract key sources
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Extract key sources",
         function="extract_best_sources",
         args={
@@ -70,7 +71,7 @@ def create_research_plan() -> UniversalPlan:
     plan.step("Content Exploration")
 
     # Add step to process sources
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Process each source",
         function="process_sources",
         args={"sources": "${key_sources}"},
@@ -78,7 +79,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add step to analyze content
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Analyze source content",
         function="analyze_content",
         args={"contents": "${source_contents}"},
@@ -89,7 +90,7 @@ def create_research_plan() -> UniversalPlan:
     plan.step("Deeper Research")
 
     # Add subplan step
-    plan.add_plan_step(
+    await plan.add_plan_step(
         title="Explore impact categories",
         plan_id="impact_categories_plan",
         args={
@@ -100,7 +101,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add step to generate focused queries
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Generate focused queries",
         function="generate_queries",
         args={"analysis": "${content_analysis}", "categories": "${impact_categories}"},
@@ -108,7 +109,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add step for focused searches
-    plan.add_tool_step(
+    await plan.add_tool_step(
         title="Execute focused searches",
         tool="batch_search",
         args={"queries": "${focused_queries}"},
@@ -119,7 +120,7 @@ def create_research_plan() -> UniversalPlan:
     plan.step("Synthesis")
 
     # Add step to synthesize findings
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Synthesize research findings",
         function="synthesize_findings",
         args={
@@ -131,7 +132,7 @@ def create_research_plan() -> UniversalPlan:
     )
 
     # Add step to generate report
-    plan.add_function_step(
+    await plan.add_function_step(
         title="Generate comprehensive report",
         function="generate_report",
         args={"synthesis": "${research_synthesis}"},
@@ -141,7 +142,7 @@ def create_research_plan() -> UniversalPlan:
     return plan
 
 
-def describe_plan(plan: UniversalPlan) -> str:
+async def describe_plan(plan: UniversalPlan) -> str:
     """Return a detailed description of the plan"""
     lines = [
         f"Plan: {plan.title}",
@@ -156,41 +157,35 @@ def describe_plan(plan: UniversalPlan) -> str:
     # Display the plan structure
     for node in plan._graph.nodes.values():
         if node.__class__.__name__ == "PlanStep":
-            index = node.data.get("index", "")
-            title = node.data.get("description", "")
+            index = node.index
+            title = node.description
 
             # Find tool calls for this step
             tool_info = ""
-            for edge in plan._graph.get_edges(src=node.id, kind=EdgeType.PLAN_LINK):
-                tool_node = plan._graph.get_node(edge.dst)
+            edges = await plan._graph.get_edges(src=node.id, kind=EdgeType.PLAN_LINK)
+            for edge in edges:
+                tool_node = await plan._graph.get_node(edge.dst)
                 if tool_node and tool_node.__class__.__name__ == "ToolCall":
-                    tool_name = tool_node.data.get("name", "")
+                    tool_name = tool_node.name
 
                     if tool_name == "function":
                         # Handle function calls specially
-                        fn_args = tool_node.data.get("args", {})
+                        fn_args = tool_node.args
                         fn_name = fn_args.get("function", "")
                         fn_args = fn_args.get("args", {})
                         tool_info = f"Function: {fn_name}, Args: {fn_args}"
                     elif tool_name == "subplan":
                         # Handle subplan calls specially
-                        subplan_args = tool_node.data.get("args", {})
+                        subplan_args = tool_node.args
                         plan_id = subplan_args.get("plan_id", "")
                         plan_args = subplan_args.get("args", {})
                         tool_info = f"Subplan: {plan_id}, Args: {plan_args}"
                     else:
                         # Regular tool
-                        tool_args = tool_node.data.get("args", {})
+                        tool_args = tool_node.args
                         tool_info = f"Tool: {tool_name}, Args: {tool_args}"
 
-                    # Look for result variable in custom edges
-                    for result_edge in plan._graph.get_edges(
-                        src=node.id, kind=EdgeType.CUSTOM
-                    ):
-                        if result_edge.data.get("type") == "result_variable":
-                            tool_info += (
-                                f", Result → ${result_edge.data.get('variable', '')}"
-                            )
+                    # Note: Result variables are part of step metadata in the current API
 
             # Add step line
             lines.append(f"  {index:<6} {title:<35} {tool_info}")
@@ -198,15 +193,15 @@ def describe_plan(plan: UniversalPlan) -> str:
     return "\n".join(lines)
 
 
-def main():
+async def main():
     """Main function to create and display the plan"""
-    plan = create_research_plan()
+    plan = await create_research_plan()
 
     print("\n🗂️  PLAN STRUCTURE\n")
     print(plan.outline())
 
     print("\n📋  DETAILED PLAN DESCRIPTION\n")
-    print(describe_plan(plan))
+    print(await describe_plan(plan))
 
     # Get plan details as dictionary for a cleaner view
     plan_dict = {
@@ -220,9 +215,9 @@ def main():
     print("\n📊  PLAN DATA\n")
     print(json.dumps(plan_dict, indent=2))
 
-    plan_id = plan.save()
+    plan_id = await plan.save()
     print(f"\n✅  Plan saved with ID: {plan_id}\n")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

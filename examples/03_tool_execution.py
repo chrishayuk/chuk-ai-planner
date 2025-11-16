@@ -12,8 +12,10 @@ This example demonstrates tool execution in plans:
 Key Takeaway: Execute tools and track results with type safety.
 """
 
+import asyncio
 from datetime import datetime, timezone
-from chuk_ai_planner.graph import (
+
+from chuk_ai_planner.core.graph import (
     PlanNode,
     PlanStep,
     ToolCall,
@@ -21,11 +23,11 @@ from chuk_ai_planner.graph import (
     ParentChildEdge,
     PlanLinkEdge,
 )
-from chuk_ai_planner.graph.types import NodeType
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.graph.types import NodeType
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
 
-def main():
+async def main():
     print("=" * 70)
     print("Tool Execution Example")
     print("=" * 70)
@@ -36,23 +38,23 @@ def main():
     plan = PlanNode(
         title="Data Processing Pipeline", description="Fetch, process, and analyze data"
     )
-    graph.add_node(plan)
+    await graph.add_node(plan)
     print(f"\n✅ Created Plan: {plan.title}")
 
     # 2. Create Step 1: Fetch Data
     fetch_step = PlanStep(description="Fetch data from API", index="1")
-    graph.add_node(fetch_step)
-    graph.add_edge(ParentChildEdge(src=plan.id, dst=fetch_step.id))
+    await graph.add_node(fetch_step)
+    await graph.add_edge(ParentChildEdge(src=plan.id, dst=fetch_step.id))
 
     # 3. Create Tool Call for fetching (typed fields!)
     fetch_tool = ToolCall(
         name="fetch_api_data",
         args={"url": "https://api.example.com/data", "method": "GET", "timeout": 30},
     )
-    graph.add_node(fetch_tool)
+    await graph.add_node(fetch_tool)
 
     # Link step to tool
-    graph.add_edge(PlanLinkEdge(src=fetch_step.id, dst=fetch_tool.id))
+    await graph.add_edge(PlanLinkEdge(src=fetch_step.id, dst=fetch_tool.id))
     print(f"\n✅ Step 1: {fetch_step.description}")
     print(f"   Tool: {fetch_tool.name}")
     print(f"   Args: {fetch_tool.args}")
@@ -65,15 +67,15 @@ def main():
         started_at=datetime.now(timezone.utc),
         completed_at=datetime.now(timezone.utc),
     )
-    graph.add_node(fetch_result)
-    graph.add_edge(ParentChildEdge(src=fetch_tool.id, dst=fetch_result.id))
+    await graph.add_node(fetch_result)
+    await graph.add_edge(ParentChildEdge(src=fetch_tool.id, dst=fetch_result.id))
     print(f"   Result Status: {fetch_result.status}")
     print(f"   Result Data: {fetch_result.result}")
 
     # 5. Create Step 2: Process Data
     process_step = PlanStep(description="Process fetched data", index="2")
-    graph.add_node(process_step)
-    graph.add_edge(ParentChildEdge(src=plan.id, dst=process_step.id))
+    await graph.add_node(process_step)
+    await graph.add_edge(ParentChildEdge(src=plan.id, dst=process_step.id))
 
     # Tool for processing
     process_tool = ToolCall(
@@ -83,15 +85,15 @@ def main():
             "transformation": "normalize",
         },
     )
-    graph.add_node(process_tool)
-    graph.add_edge(PlanLinkEdge(src=process_step.id, dst=process_tool.id))
+    await graph.add_node(process_tool)
+    await graph.add_edge(PlanLinkEdge(src=process_step.id, dst=process_tool.id))
     print(f"\n✅ Step 2: {process_step.description}")
     print(f"   Tool: {process_tool.name}")
 
     # 6. Create Step 3: Analyze with multiple tools
     analyze_step = PlanStep(description="Analyze processed data", index="3")
-    graph.add_node(analyze_step)
-    graph.add_edge(ParentChildEdge(src=plan.id, dst=analyze_step.id))
+    await graph.add_node(analyze_step)
+    await graph.add_edge(ParentChildEdge(src=plan.id, dst=analyze_step.id))
 
     # Multiple tools for one step
     stats_tool = ToolCall(
@@ -99,11 +101,11 @@ def main():
     )
     plot_tool = ToolCall(name="generate_plot", args={"data": "${processed_data}"})
 
-    graph.add_node(stats_tool)
-    graph.add_node(plot_tool)
+    await graph.add_node(stats_tool)
+    await graph.add_node(plot_tool)
 
-    graph.add_edge(PlanLinkEdge(src=analyze_step.id, dst=stats_tool.id))
-    graph.add_edge(PlanLinkEdge(src=analyze_step.id, dst=plot_tool.id))
+    await graph.add_edge(PlanLinkEdge(src=analyze_step.id, dst=stats_tool.id))
+    await graph.add_edge(PlanLinkEdge(src=analyze_step.id, dst=plot_tool.id))
 
     print(f"\n✅ Step 3: {analyze_step.description}")
     print(f"   Tool 1: {stats_tool.name}")
@@ -115,13 +117,13 @@ def main():
     print("=" * 70)
 
     # Find all tool calls
-    tools = graph.get_nodes_by_kind(NodeType.TOOL_CALL)
+    tools = await graph.get_nodes_by_kind(NodeType.TOOL_CALL)
     print(f"\n📊 Total Tools: {len(tools)}")
     for tool in tools:
         print(f"   - {tool.name}: {tool.args}")
 
     # Find task results
-    task_runs = graph.get_nodes_by_kind(NodeType.TASK_RUN)
+    task_runs = await graph.get_nodes_by_kind(NodeType.TASK_RUN)
     print(f"\n📊 Total Task Runs: {len(task_runs)}")
     for task in task_runs:
         print(f"   - Status: {task.status}")
@@ -129,10 +131,10 @@ def main():
             print(f"     Duration: {task.duration_seconds}s")
 
     # Find tools for a specific step
-    step_tools = graph.get_edges(src=analyze_step.id, kind=EdgeType.PLAN_LINK)
+    step_tools = await graph.get_edges(src=analyze_step.id, kind=EdgeType.PLAN_LINK)
     print(f"\n📊 Tools for Step 3: {len(step_tools)}")
     for edge in step_tools:
-        tool_node = graph.get_node(edge.dst)
+        tool_node = await graph.get_node(edge.dst)
         print(f"   - {tool_node.name}")
 
     # 8. Demonstrate Typed Fields
@@ -143,7 +145,7 @@ def main():
     print("\n🔍 ToolCall typed fields:")
     print(f"   name: str = '{fetch_tool.name}'")
     print(f"   args: dict = {fetch_tool.args}")
-    print("   (Not .data.get('name')!)")
+    print("   (Not .name!)")
 
     print("\n🔍 TaskRun typed fields:")
     print(f"   status: str = '{fetch_result.status}'")
@@ -164,6 +166,6 @@ def main():
 
 
 if __name__ == "__main__":
-    from chuk_ai_planner.graph.types import EdgeType  # For query
+    from chuk_ai_planner.core.graph.types import EdgeType  # For query
 
-    main()
+    asyncio.run(main())

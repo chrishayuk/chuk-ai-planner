@@ -26,8 +26,8 @@ class GraphPlanAgent(PlanAgent):
         graph: GraphStore | None,
         system_prompt: str,
         validate_step: _Validate,
-        model: str = "gpt-4o-mini",
-        temperature: float = 0.3,
+        model: str = "gpt-5-mini",
+        temperature: float = 1.0,
         max_retries: int = 3,
     ):
         super().__init__(

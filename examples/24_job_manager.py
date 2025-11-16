@@ -11,8 +11,8 @@ This is the simplest way to use chuk-ai-planner.
 import asyncio
 from chuk_ai_planner.jobs import JobManager, JobStatus
 from chuk_ai_planner.agents.graph_plan_agent import GraphPlanAgent
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -29,9 +29,16 @@ async def setup_manager():
     # Create planner (you'd configure this with your tools)
     planner = GraphPlanAgent(
         graph=graph,
-        system_prompt="You are a helpful planning assistant.",
-        validate_step=lambda step: True,  # Simple validation
-        model="gpt-4o-mini",
+        system_prompt="""You are a helpful planning assistant.
+Return your response as a JSON object with this structure:
+{
+  "title": "Plan title",
+  "steps": [
+    {"title": "Step description", "tool": "tool_name", "args": {}, "depends_on": []}
+  ]
+}""",
+        validate_step=lambda step: (True, ""),  # Simple validation
+        model="gpt-5-mini",
     )
 
     # Create executor

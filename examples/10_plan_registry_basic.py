@@ -12,9 +12,10 @@ A simple demonstration of the PlanRegistry with only the essential operations:
 
 import os
 import shutil
+import asyncio
 
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.plan_registry import PlanRegistry
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.plan_registry import PlanRegistry
 
 # Create a temporary directory for the registry
 REGISTRY_DIR = "temp_registry"
@@ -23,7 +24,7 @@ if os.path.exists(REGISTRY_DIR):
 os.makedirs(REGISTRY_DIR)
 
 
-def main():
+async def main():
     # Create a registry
     registry = PlanRegistry(storage_dir=REGISTRY_DIR)
     print(f"Created PlanRegistry in {REGISTRY_DIR}")
@@ -40,7 +41,7 @@ def main():
     plan.set_variable("location", "New York")
 
     # Add a tool step
-    plan.add_tool_step(
+    await plan.add_tool_step(
         title="Check Weather",
         tool="weather",
         args={"location": "${location}"},
@@ -48,12 +49,12 @@ def main():
     )
 
     # Register the plan
-    plan_id = registry.register_plan(plan)
+    plan_id = await registry.register_plan(plan)
     print(f"Registered plan with ID: {plan_id}")
 
     # Clear memory and get plan from registry
     registry.plans = {}
-    retrieved_plan = registry.get_plan(plan_id)
+    retrieved_plan = await registry.get_plan(plan_id)
 
     # Display retrieved plan
     print("\nRetrieved Plan:")
@@ -68,7 +69,7 @@ def main():
     print(retrieved_plan.outline())
 
     # Get plan as dictionary
-    plan_dict = retrieved_plan.to_dict()
+    plan_dict = await retrieved_plan.to_dict()
     print("\nPlan Steps:")
     for step in plan_dict["steps"]:
         print(f"  - {step['title']}")
@@ -81,7 +82,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
 
     # Clean up
     print(f"\nCleaning up {REGISTRY_DIR}")

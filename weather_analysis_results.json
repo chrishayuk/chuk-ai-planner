@@ -1,0 +1,115 @@
+{
+  "target_cities": [
+    "New York",
+    "London",
+    "Tokyo",
+    "Sydney",
+    "Cairo"
+  ],
+  "weather_data": {
+    "results": {
+      "New York": {
+        "temperature": 72,
+        "conditions": "Partly cloudy",
+        "humidity": 65
+      },
+      "London": {
+        "temperature": 62,
+        "conditions": "Rainy",
+        "humidity": 80
+      },
+      "Tokyo": {
+        "temperature": 78,
+        "conditions": "Sunny",
+        "humidity": 70
+      },
+      "Sydney": {
+        "temperature": 68,
+        "conditions": "Clear",
+        "humidity": 60
+      },
+      "Cairo": {
+        "temperature": 90,
+        "conditions": "Hot",
+        "humidity": 30
+      }
+    }
+  },
+  "analysis": {
+    "average_temperature": 74.0,
+    "average_humidity": 61.0,
+    "most_common_condition": "Partly cloudy",
+    "condition_distribution": {
+      "Partly cloudy": 1,
+      "Rainy": 1,
+      "Sunny": 1,
+      "Clear": 1,
+      "Hot": 1
+    },
+    "locations_analyzed": 5
+  },
+  "report": {
+    "title": "Global Weather Analysis Report",
+    "summary": "5 cities analysed. Avg T = 74.0 \u00b0F, Avg RH = 61.0 %. Most common: Partly cloudy.",
+    "details": {
+      "average_temperature": 74.0,
+      "average_humidity": 61.0,
+      "most_common_condition": "Partly cloudy",
+      "condition_distribution": {
+        "Partly cloudy": 1,
+        "Rainy": 1,
+        "Sunny": 1,
+        "Clear": 1,
+        "Hot": 1
+      },
+      "locations_analyzed": 5
+    }
+  },
+  "viz": {
+    "title": "Global Weather Visualization",
+    "temperature_data": [
+      {
+        "location": "Cairo",
+        "temperature": 90
+      },
+      {
+        "location": "Tokyo",
+        "temperature": 78
+      },
+      {
+        "location": "New York",
+        "temperature": 72
+      },
+      {
+        "location": "Sydney",
+        "temperature": 68
+      },
+      {
+        "location": "London",
+        "temperature": 62
+      }
+    ],
+    "condition_data": [
+      {
+        "condition": "Partly cloudy",
+        "count": 1
+      },
+      {
+        "condition": "Rainy",
+        "count": 1
+      },
+      {
+        "condition": "Sunny",
+        "count": 1
+      },
+      {
+        "condition": "Clear",
+        "count": 1
+      },
+      {
+        "condition": "Hot",
+        "count": 1
+      }
+    ]
+  }
+}

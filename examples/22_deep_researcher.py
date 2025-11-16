@@ -12,8 +12,8 @@
 # from urllib.parse import urlparse, parse_qs, unquote
 # from dotenv import load_dotenv; load_dotenv()
 
-# from chuk_ai_planner.planner.universal_plan          import UniversalPlan
-# from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+# from chuk_ai_planner.core.planner.universal_plan          import UniversalPlan
+# from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
 
 # # ───────────────────────────  sample_tools wrappers  ─────────────────────────
 # from sample_tools import SearchTool, VisitURL, WeatherTool
@@ -72,7 +72,7 @@
 #     if live and AsyncOpenAI and os.getenv("OPENAI_API_KEY"):
 #         c=AsyncOpenAI(); logger.info("📡  OpenAI plan request")
 #         r=await c.chat.completions.create(
-#             model="gpt-4o-mini",temperature=0.3,
+#             model="gpt-5-mini",temperature=1.0,
 #             messages=[{"role":"system","content":SYS},
 #                       {"role":"user","content":f"Create a research plan for: {topic}"}])
 #         txt=r.choices[0].message.content.strip()

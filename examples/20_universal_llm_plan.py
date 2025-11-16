@@ -17,11 +17,11 @@ import os
 from typing import Dict, Any
 
 # Import the official UniversalPlan implementation
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
 
 # ── A2A plumbing -----------------------------------------------------
-from chuk_ai_planner.graph import GraphEdge, EdgeType
+from chuk_ai_planner.core.graph import GraphEdge, EdgeType
 
 from dotenv import load_dotenv
 
@@ -57,8 +57,8 @@ async def call_llm_live(task: str) -> Dict[str, Any]:
         raise RuntimeError("openai package not installed")
     client = AsyncOpenAI()
     resp = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.3,
+        model="gpt-5-mini",
+        temperature=1.0,  # Required for gpt-5-mini (only supported value)
         messages=[
             {"role": "system", "content": LLM_SYSTEM_MSG},
             {"role": "user", "content": task},
@@ -117,7 +117,7 @@ async def call_llm_sim(task: str) -> Dict[str, Any]:
 
 
 # -------------------------------------------------------------------- Universal Plan conversion
-def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
+async def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
     """Convert LLM-generated JSON to a UniversalPlan using the enhanced API"""
     # Create a new universal plan
     plan = UniversalPlan(
@@ -141,19 +141,16 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
 
         if tool:
             # Use the enhanced API to add tool steps
-            step_id = plan.add_tool_step(
+            step_id = await plan.add_tool_step(
                 title=title, tool=tool, args=args, result_variable=f"result_{i}"
             )
             step_ids[i] = step_id
         else:
             # Fallback for steps without tools
-            step_index = plan.add_step(title, parent=None)
+            step_index = await plan.add_step(title, parent=None)
             # Find the step ID (this is a bit complex with the current API)
             for node in plan._graph.nodes.values():
-                if (
-                    node.__class__.__name__ == "PlanStep"
-                    and node.data.get("index") == step_index
-                ):
+                if node.__class__.__name__ == "PlanStep" and node.index == step_index:
                     step_ids[i] = node.id
                     break
 
@@ -167,7 +164,7 @@ def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
         for dep_idx in step_data.get("depends_on", []):
             dep_id = step_ids.get(dep_idx)
             if dep_id:
-                plan._graph.add_edge(
+                await plan._graph.add_edge(
                     GraphEdge(kind=EdgeType.STEP_ORDER, src=dep_id, dst=step_id)
                 )
 
@@ -273,10 +270,10 @@ async def main(live: bool) -> None:
 
     # Convert to UniversalPlan
     print("\n🔄 CONVERTING TO UNIVERSAL PLAN...\n")
-    plan = convert_to_universal_plan(llm_json)
+    plan = await convert_to_universal_plan(llm_json)
 
     # Save the plan
-    plan.save()
+    await plan.save()
 
     print("\n📋 UNIVERSAL PLAN STRUCTURE\n")
     print(plan.outline(), "\n")

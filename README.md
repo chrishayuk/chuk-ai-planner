@@ -12,8 +12,13 @@ The package models plans, steps, tools, results, and other components as nodes i
 
 - **Graph-based Plan Representation**: Model plans as interconnected nodes and edges
 - **Hierarchical Planning**: Create nested steps and sub-steps with dependencies
+- **Conditional Routing**: Expression-based, function-based, and LLM-based routing
+- **UniversalPlan API**: Modern async-first interface for plan creation and execution
+- **JobManager Orchestration**: High-level API for managing AI-powered workflows
 - **Tool Execution Framework**: Clean abstraction for executing tools within plans
+- **LLM Integration**: Generate plans from natural language using gpt-5-mini
 - **Parallel Execution**: Automatic parallelization of independent steps
+- **Variable Substitution**: Dynamic value resolution with {variable} syntax
 - **Visualization Utilities**: Console-based and graphical visualizations
 - **Session Tracing**: Track execution with detailed event logs
 - **Flexible Storage**: In-memory storage with extensible interfaces
@@ -59,7 +64,114 @@ print_graph_structure(graph)
 
 ## Core Components
 
-### Plan DSL
+### UniversalPlan API (Recommended)
+
+The modern UniversalPlan API provides a clean, async-first interface for creating and executing plans:
+
+```python
+from chuk_ai_planner.core.planner import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
+
+# Create a plan with tool and function steps
+graph = InMemoryGraphStore()
+plan = UniversalPlan(title="Data Processing Pipeline", graph=graph)
+
+# Add steps with dependencies
+await plan.add_tool_step(
+    title="Fetch data from API",
+    tool_name="api_fetch",
+    args={"endpoint": "/data"},
+    result_variable="raw_data"
+)
+
+await plan.add_function_step(
+    title="Process data",
+    function="process_data",
+    args={"data": "{raw_data}"},  # Variable substitution
+    depends_on=["1"],
+    result_variable="processed_data"
+)
+
+# Save and execute
+plan_id = await plan.save()
+executor = UniversalExecutor(graph_store=graph)
+results = await executor.execute(plan_id)
+```
+
+### Conditional Routing
+
+The framework supports three types of conditional routing for dynamic plan execution:
+
+#### 1. Expression-Based Routing
+
+```python
+from chuk_ai_planner.core.graph import RouterStep, RouteEdge
+from chuk_ai_planner.core.graph.types import RouterType
+
+# Create a router that evaluates expressions
+router = RouterStep(
+    router_type=RouterType.EXPRESSION,
+    description="Route based on priority",
+    routes=["high", "medium", "low"],
+    router_expression="priority"  # Variable name
+)
+
+# Add route edges to different steps
+await graph.add_edge(RouteEdge(src=router.id, dst=high_step.id, route_key="high"))
+await graph.add_edge(RouteEdge(src=router.id, dst=medium_step.id, route_key="medium"))
+await graph.add_edge(RouteEdge(src=router.id, dst=low_step.id, route_key="low", is_default=True))
+```
+
+#### 2. Function-Based Routing
+
+```python
+from chuk_ai_planner.core.routing import FunctionRegistry, RoutingExecutor
+
+# Create and register a routing function
+registry = FunctionRegistry()
+
+@registry.register("priority_router")
+def calculate_priority(context):
+    urgency = context.get("urgency", 0)
+    if urgency >= 8:
+        return "critical"
+    elif urgency >= 5:
+        return "urgent"
+    return "normal"
+
+# Use in a router step
+router = RouterStep(
+    router_type=RouterType.FUNCTION,
+    description="Route based on urgency",
+    routes=["critical", "urgent", "normal"],
+    router_function="priority_router"
+)
+
+# Execute with the function registry
+executor = RoutingExecutor(graph, function_registry=registry)
+decision = await executor.evaluate_route(router, {"urgency": 9})
+```
+
+#### 3. LLM-Based Routing
+
+```python
+# Create a router that uses LLM to make decisions
+router = RouterStep(
+    router_type=RouterType.LLM,
+    description="Classify user request",
+    routes=["technical", "billing", "general"],
+    router_prompt="Classify this support request: {user_message}",
+    router_model="gpt-5-mini"
+)
+
+# The router will call the LLM to decide which route to take
+executor = RoutingExecutor(graph)
+decision = await executor.evaluate_route(router, {"user_message": "My API key isn't working"})
+# Returns: "technical"
+```
+
+### Plan DSL (Classic API)
 
 The Plan Domain-Specific Language (DSL) allows you to define hierarchical plans with steps and dependencies:
 
@@ -157,11 +269,46 @@ from chuk_ai_planner.agents.graph_plan_agent import GraphPlanAgent
 agent = GraphPlanAgent(
     graph=graph,
     system_prompt="You are a planning assistant...",
-    validate_step=my_validator
+    validate_step=lambda step: (True, ""),
+    model="gpt-5-mini",  # Default model
+    temperature=1.0  # Required for gpt-5-mini
 )
 
 # Generate a plan from a prompt
 plan, plan_id, graph = await agent.plan_into_graph("Research the history of AI")
+```
+
+### JobManager API (High-Level Orchestration)
+
+The JobManager provides a Manus-style orchestration API for managing AI-powered workflows:
+
+```python
+from chuk_ai_planner.jobs import JobManager
+from chuk_ai_planner.agents.graph_plan_agent import GraphPlanAgent
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
+
+# Set up the job manager
+graph = InMemoryGraphStore()
+planner = GraphPlanAgent(graph=graph, system_prompt="...", validate_step=lambda s: (True, ""))
+executor = UniversalExecutor(graph_store=graph)
+manager = JobManager(planner=planner, executor=executor, graph_store=graph)
+
+# One-shot execution: describe what you want and run it
+run = await manager.run_job("Analyze customer feedback and generate report")
+
+# Or step-by-step with more control
+job = await manager.create_job("Deploy to production", tags=["deployment"])
+run = await manager.plan_job(job.id)  # Generate execution plan
+# ... review plan, get approvals ...
+result = await manager.start_job(job.id)  # Execute
+
+# Monitor jobs
+jobs = await manager.list_jobs(status=[JobStatus.RUNNING])
+status = await manager.get_job_status(job.id)
+
+# Resume failed jobs
+await manager.resume_job(job.id)
 ```
 
 ## Contributing

@@ -277,8 +277,8 @@ async def extract_new_directions(
 
         client = AsyncOpenAI()
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.3,
+            model="gpt-5-mini",
+            temperature=1.0,  # Required for gpt-5-mini (only supported value)
             messages=[{"role": "user", "content": prompt}],
         )
         raw_content = response.choices[0].message.content
@@ -425,8 +425,8 @@ async def create_comprehensive_summary(results: list[dict[str, Any]], goal: str)
 
     try:
         rsp = await client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0,
+            model="gpt-5-mini",
+            temperature=1.0,  # Required for gpt-5-mini (only supported value)
             messages=[{"role": "user", "content": prompt}],
         )
         raw_content = rsp.choices[0].message.content

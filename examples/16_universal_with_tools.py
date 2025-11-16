@@ -18,9 +18,9 @@ import asyncio
 from typing import Any, Dict
 
 # Universal plan imports
-from chuk_ai_planner.planner.universal_plan import UniversalPlan
-from chuk_ai_planner.planner.universal_plan_executor import UniversalExecutor
-from chuk_ai_planner.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.planner.universal_plan import UniversalPlan
+from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 from chuk_ai_planner.utils.pretty import clr
 
 # chuk_tool_processor imports (proper API)
@@ -256,7 +256,7 @@ class UniversalToolRegistry:
 
 
 # ───────────────────── Build Universal Plan ───────────────────────
-def build_universal_plan() -> UniversalPlan:
+async def build_universal_plan() -> UniversalPlan:
     """Build a Universal Plan using the fluent interface"""
     print(clr("🟢  BUILD UNIVERSAL PLAN\n", "1;32"))
 
@@ -280,28 +280,28 @@ def build_universal_plan() -> UniversalPlan:
     plan.add_metadata("execution_strategy", "chuk_tool_processor")
 
     # Build plan using fluent interface with direct method calls
-    step1_id = plan.add_tool_step(
+    step1_id = await plan.add_tool_step(
         title="Get weather data",
         tool="weather",
         args={"location": "${target_location}"},
         result_variable="weather_data",
     )
 
-    step2_id = plan.add_tool_step(
+    step2_id = await plan.add_tool_step(
         title="Perform calculation",
         tool="calculator",
         args={"operation": "multiply", "a": "${calc_a}", "b": "${calc_b}"},
         result_variable="calculation_result",
     )
 
-    step3_id = plan.add_tool_step(
+    step3_id = await plan.add_tool_step(
         title="Search for information",
         tool="search",
         args={"query": "${search_topic}"},
         result_variable="search_results",
     )
 
-    step4_id = plan.add_tool_step(
+    step4_id = await plan.add_tool_step(
         title="Analyze combined data",
         tool="analyzer",
         args={
@@ -313,7 +313,7 @@ def build_universal_plan() -> UniversalPlan:
     )
 
     # Save the plan
-    plan.save()
+    await plan.save()
 
     # Display plan structure
     print("Universal Plan Structure:")
@@ -329,7 +329,7 @@ def build_universal_plan() -> UniversalPlan:
     print()
 
     # Display plan details
-    plan_dict = plan.to_dict()
+    plan_dict = await plan.to_dict()
     print("Plan Details:")
     print(f"  - Title: {plan_dict['title']}")
     print(f"  - Description: {plan_dict['description']}")
@@ -514,7 +514,7 @@ async def main() -> None:
     print("=" * 70)
 
     # Build the universal plan
-    plan = build_universal_plan()
+    plan = await build_universal_plan()
 
     # Demo variable resolution
     await demonstrate_variable_resolution()
@@ -530,7 +530,8 @@ async def main() -> None:
         if result:
             print(clr("\n📈 DETAILED EXECUTION SUMMARY", "1;33"))
             print(f"   - Plan: {plan.title}")
-            print(f"   - Steps: {len(plan.to_dict()['steps'])}")
+            plan_dict_summary = await plan.to_dict()
+            print(f"   - Steps: {len(plan_dict_summary['steps'])}")
             print(
                 f"   - Input Variables: {len([k for k in result['variables'].keys() if k.startswith(('target_', 'calc_', 'search_'))])}"
             )

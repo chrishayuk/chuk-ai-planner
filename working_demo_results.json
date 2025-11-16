@@ -1,0 +1,53 @@
+{
+  "target_city": "New York",
+  "num_a": 235.5,
+  "num_b": 18.75,
+  "search_query": "renewable energy solutions",
+  "weather_info": {
+    "temperature": 72,
+    "conditions": "Partly cloudy",
+    "humidity": 65,
+    "wind_speed": 5
+  },
+  "calc_info": {
+    "result": 4415.625,
+    "operation": "multiply",
+    "operands": [
+      235.5,
+      18.75
+    ]
+  },
+  "search_info": {
+    "query": "renewable energy solutions",
+    "total_results": 3,
+    "results": [
+      {
+        "title": "Complete Guide to renewable energy solutions",
+        "url": "https://example.com/renewable-energy-solutions",
+        "snippet": "Comprehensive information about renewable energy solutions"
+      },
+      {
+        "title": "renewable energy solutions - Latest Research",
+        "url": "https://research.org/renewable_energy_solutions",
+        "snippet": "Recent developments in renewable energy solutions"
+      },
+      {
+        "title": "Best Practices for renewable energy solutions",
+        "url": "https://bestpractices.com/renewable-energy-solutions",
+        "snippet": "Expert recommendations for renewable energy solutions"
+      }
+    ]
+  },
+  "analysis_info": {
+    "temperature_analysis": {
+      "value": 72,
+      "category": "moderate"
+    },
+    "calculation_analysis": {
+      "value": 4415.625,
+      "magnitude": "large"
+    },
+    "combined_score": 116.15625,
+    "summary": "Temperature: 72\u00b0F (moderate), Calculation: 4415.625 (large)"
+  }
+}

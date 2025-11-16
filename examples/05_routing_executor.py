@@ -13,7 +13,7 @@ Super clean typed API - no dictionary goop!
 
 import asyncio
 
-from chuk_ai_planner.graph import (
+from chuk_ai_planner.core.graph import (
     PlanNode,
     PlanStep,
     RouterStep,
@@ -21,9 +21,9 @@ from chuk_ai_planner.graph import (
     RouteEdge,
     StepEdge,
 )
-from chuk_ai_planner.graph.types import RouterType
-from chuk_ai_planner.store.memory import InMemoryGraphStore
-from chuk_ai_planner.routing import RoutingExecutor
+from chuk_ai_planner.core.graph.types import RouterType
+from chuk_ai_planner.core.store.memory import InMemoryGraphStore
+from chuk_ai_planner.core.routing import RoutingExecutor
 
 
 async def main():
@@ -39,12 +39,12 @@ async def main():
         title="Quality-based Publishing",
         description="Route content based on quality score",
     )
-    graph.add_node(plan)
+    await graph.add_node(plan)
 
     # Step 1: Analyze content - clean typed API
     step1 = PlanStep(description="Analyze content quality", index="1")
-    graph.add_node(step1)
-    graph.add_edge(ParentChildEdge(src=plan.id, dst=step1.id))
+    await graph.add_node(step1)
+    await graph.add_edge(ParentChildEdge(src=plan.id, dst=step1.id))
 
     # Step 2: Router - pure Pydantic with enums!
     router = RouterStep(
@@ -57,23 +57,23 @@ async def main():
             False: "low_quality",  # When condition is False
         },
     )
-    graph.add_node(router)
-    graph.add_edge(StepEdge(src=step1.id, dst=router.id))
+    await graph.add_node(router)
+    await graph.add_edge(StepEdge(src=step1.id, dst=router.id))
 
     # Step 3a: Publish (high quality route)
     step_publish = PlanStep(description="Publish content", index="3a")
-    graph.add_node(step_publish)
+    await graph.add_node(step_publish)
 
     # Step 3b: Revise (low quality route)
     step_revise = PlanStep(description="Revise and improve content", index="3b")
-    graph.add_node(step_revise)
+    await graph.add_node(step_revise)
 
     # Create route edges - clean typed fields
     route_high = RouteEdge(src=router.id, dst=step_publish.id, route_key="high_quality")
-    graph.add_edge(route_high)
+    await graph.add_edge(route_high)
 
     route_low = RouteEdge(src=router.id, dst=step_revise.id, route_key="low_quality")
-    graph.add_edge(route_low)
+    await graph.add_edge(route_low)
 
     print(f"\n✅ Plan created with {len(graph.nodes)} nodes")
     print(f"   - Plan: {plan.id[:8]} (title: {plan.title})")

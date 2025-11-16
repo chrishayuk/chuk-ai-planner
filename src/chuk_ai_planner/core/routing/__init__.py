@@ -6,6 +6,6 @@ This module provides components for routing execution based on conditions,
 LLM decisions, or custom functions.
 """
 
-from .executor import RoutingExecutor, RoutingDecision
+from .executor import RoutingExecutor, RoutingDecision, FunctionRegistry
 
-__all__ = ["RoutingExecutor", "RoutingDecision"]
+__all__ = ["RoutingExecutor", "RoutingDecision", "FunctionRegistry"]

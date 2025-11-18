@@ -191,12 +191,11 @@ class TestAddFunctionStep:
 
         assert step_id is not None
 
-        # Verify tool call with function type
+        # Verify tool call with function name (CTP-first: functions are tools!)
         tools = await plan._graph.get_nodes_by_kind(NodeType.TOOL_CALL)
         assert len(tools) == 1
-        assert tools[0].name == "function"
-        assert tools[0].args["function"] == "process_data"
-        assert tools[0].args["args"]["param"] == "value"
+        assert tools[0].name == "process_data"  # Function name directly, not "function"
+        assert tools[0].args["param"] == "value"  # Args unpacked directly
 
     @pytest.mark.asyncio
     async def test_add_function_step_with_result_variable(self, plan):

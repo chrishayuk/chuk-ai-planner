@@ -103,9 +103,8 @@ class SimplePlanRegistry:
 # ---- Mock Data Sources and Processors ----
 
 
-async def data_source_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def data_source_tool(source: str = "unknown") -> dict:
     """Tool that retrieves data from a specified source"""
-    source = args.get("source", "unknown")
     print(f"\n📥 Retrieving data from source: {source}")
 
     # Simulate API call delay
@@ -657,18 +656,18 @@ async def main():
 
     # Register basic tools and functions first
     print("\n🔧 Registering tools and functions...")
-    executor.register_tool("data_source", data_source_tool)
-    executor.register_function("clean_data", clean_data_function)
-    executor.register_function("analyze", analyze_function)
-    executor.register_function("add_metadata", add_metadata_function)
-    executor.register_function("combine_results", combine_results_function)
-    executor.register_function("generate_report", generate_report_function)
+    await executor.register_tool("data_source", data_source_tool)
+    await executor.register_function("clean_data", clean_data_function)
+    await executor.register_function("analyze", analyze_function)
+    await executor.register_function("add_metadata", add_metadata_function)
+    await executor.register_function("combine_results", combine_results_function)
+    await executor.register_function("generate_report", generate_report_function)
 
     # Create and register the subplan execution tool with closure
     async def subplan_tool(args):
         return await subplan_execution_tool(args, registry, executor)
 
-    executor.register_tool("subplan", subplan_tool)
+    await executor.register_tool("subplan", subplan_tool)
 
     # Create and register subplans
     print("\n📋 Creating and registering subplans...")

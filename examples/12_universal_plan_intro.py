@@ -16,14 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 # Simple tools
-async def hello_tool(args):
+async def hello_tool(name: str = "World") -> dict:
     """A simple tool that says hello."""
-    name = args.get("name", "World")
     logger.info(f"👋 Hello, {name}!")
     return {"message": f"Hello, {name}!"}
 
 
-def summarize_function():
+def summarize_function() -> dict:
     """A simple function that generates a summary."""
     logger.info("📝 Creating summary...")
     return {"summary": "This is a simple summary."}
@@ -38,8 +37,8 @@ async def run_demo(topic="UniversalPlan"):
     executor = UniversalExecutor()
 
     # Register tools and functions
-    executor.register_tool("hello", hello_tool)
-    executor.register_function("summarize", summarize_function)
+    await executor.register_tool("hello", hello_tool)
+    await executor.register_function("summarize", summarize_function)
 
     # Create a simple plan
     plan = UniversalPlan(

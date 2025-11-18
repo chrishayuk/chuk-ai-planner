@@ -195,6 +195,9 @@ class UniversalPlan(ChukPlan):
         """
         Add a step that executes a function
         Returns the step ID
+
+        In CTP-first architecture, functions are registered as tools,
+        so we treat function steps the same as tool steps.
         """
         # Add the basic step
         step_index = await self.add_step(title, parent=None, after=depends_on or [])
@@ -204,10 +207,12 @@ class UniversalPlan(ChukPlan):
         if not step_id:
             raise ValueError(f"Failed to find step node for index {step_index}")
 
-        # Create a special tool call for functions
+        # CTP-first: Create a tool call with the function name directly
+        # Functions are registered as tools via register_function(), so they're
+        # executed the same way as tools
         tool_call = ToolCall(
-            name=TOOL_TYPE_FUNCTION,
-            args={TOOL_TYPE_FUNCTION: function, KEY_ARGS: args or {}},
+            name=function,  # Use function name directly (not "function")
+            args=args or {},
         )
         await self._graph.add_node(tool_call)
 

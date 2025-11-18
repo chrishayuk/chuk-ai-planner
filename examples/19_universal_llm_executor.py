@@ -90,9 +90,9 @@ def make_json_serializable(obj: Any) -> Any:
 
 
 # -------------------------------------------------------------------- Mock Tool Implementations
-async def weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def weather_tool(location: str = "Unknown") -> dict:
     """Get weather for a location."""
-    print(f"📍 Getting weather for: {args.get('location', 'Unknown')}")
+    print(f"📍 Getting weather for: {location}")
 
     # Sample weather data
     weather_data = {
@@ -103,7 +103,6 @@ async def weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
         "Cairo": {"temperature": 90, "conditions": "Hot", "humidity": 30},
     }
 
-    location = args.get("location", "Unknown")
     result = weather_data.get(
         location, {"temperature": 75, "conditions": "Unknown", "humidity": 50}
     )
@@ -111,11 +110,8 @@ async def weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-async def calculator_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def calculator_tool(operation: str, a: float = 0, b: float = 0) -> dict:
     """Perform a calculation."""
-    operation = args.get("operation")
-    a = float(args.get("a", 0))
-    b = float(args.get("b", 0))
 
     print(f"🧮 Calculating: {a} {operation} {b}")
 
@@ -137,9 +133,8 @@ async def calculator_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"result": result}
 
 
-async def search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def search_tool(query: str = "") -> dict:
     """Simulated search tool."""
-    query = args.get("query", "")
     print(f"🔍 Searching for: {query}")
 
     # Simulated search results
@@ -164,9 +159,9 @@ async def search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"results": results}
 
 
-async def coffee_tool(args: Dict[str, Any], tool_name: str) -> Dict[str, Any]:
+async def coffee_tool(tool_name: str, **kwargs) -> dict:
     """Generic coffee tool implementation."""
-    print(f"☕ {tool_name}: {args}")
+    print(f"☕ {tool_name}: {kwargs}")
 
     coffee_actions = {
         "grind_beans": "Beans ground successfully to a medium-fine consistency",
@@ -518,9 +513,9 @@ async def main(live: bool = False) -> None:
     executor = UniversalExecutor(graph_store=plan._graph)
 
     # Register all the tools
-    executor.register_tool("weather", weather_tool)
-    executor.register_tool("calculator", calculator_tool)
-    executor.register_tool("search", search_tool)
+    await executor.register_tool("weather", weather_tool)
+    await executor.register_tool("calculator", calculator_tool)
+    await executor.register_tool("search", search_tool)
 
     # Register coffee tools
     for tool_name in ["grind_beans", "boil_water", "brew_coffee", "clean_station"]:
@@ -528,7 +523,7 @@ async def main(live: bool = False) -> None:
         async def tool_fn(args, name=tool_name):
             return await coffee_tool(args, name)
 
-        executor.register_tool(tool_name, tool_fn)
+        await executor.register_tool(tool_name, tool_fn)
 
     print("Registered tools:")
     print("- weather: Get weather for a location")

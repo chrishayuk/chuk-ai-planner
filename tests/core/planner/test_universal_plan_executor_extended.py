@@ -175,12 +175,13 @@ class TestDuplicateExecutionPrevention:
         """Test that steps are not executed multiple times."""
         call_count = 0
 
-        async def counting_tool(args):
+        async def counting_tool() -> dict:
             nonlocal call_count
             call_count += 1
             return {"call_number": call_count}
 
-        executor.register_tool("counting_tool", counting_tool)
+        await executor.register_tool("counting_tool", counting_tool)
+        await executor._ensure_session()  # Initialize backend
 
         # Create a step
         step = PlanStep(description="Counting step", index="1")
@@ -214,12 +215,13 @@ class TestDuplicateExecutionPrevention:
         """Test that tool calls are not executed multiple times."""
         call_count = 0
 
-        async def counting_tool(args):
+        async def counting_tool() -> dict:
             nonlocal call_count
             call_count += 1
             return {"call_number": call_count}
 
-        executor.register_tool("counting_tool", counting_tool)
+        await executor.register_tool("counting_tool", counting_tool)
+        await executor._ensure_session()  # Initialize backend
 
         # Create two steps that use the same tool call (edge case)
         step1 = PlanStep(description="Step 1", index="1")
@@ -256,10 +258,11 @@ class TestResultVariableManagement:
     async def test_result_variable_storage(self, executor, graph_store):
         """Test that result variables are properly stored."""
 
-        async def test_tool(args):
-            return {"result": f"processed_{args.get('input', 'default')}"}
+        async def test_tool(input: str = "default") -> dict:
+            return {"result": f"processed_{input}"}
 
-        executor.register_tool("test_tool", test_tool)
+        await executor.register_tool("test_tool", test_tool)
+        await executor._ensure_session()  # Initialize backend
 
         # Create step with result variable
         step = PlanStep(description="Test step", index="1")
@@ -322,21 +325,19 @@ class TestComplexPlanExecution:
     async def test_complex_variable_flow(self, executor, complex_plan):
         """Test complex variable flow through multiple steps."""
 
-        # Register tools that use nested variables
-        async def user_processor(args):
-            user_name = args.get("name")
-            user_skills = args.get("skills", [])
+        # Register tools that use nested variables (v0.2: direct params)
+        async def user_processor(name: str = "", skills: list = None) -> dict:
+            if skills is None:
+                skills = []
             return {
                 "processed_user": {
-                    "display_name": f"User: {user_name}",
-                    "skill_count": len(user_skills),
-                    "has_python": "python" in user_skills,
+                    "display_name": f"User: {name}",
+                    "skill_count": len(skills),
+                    "has_python": "python" in skills,
                 }
             }
 
-        async def config_validator(args):
-            endpoint = args.get("endpoint")
-            timeout = args.get("timeout")
+        async def config_validator(endpoint: str = "", timeout: int = 0) -> dict:
             return {
                 "validation": {
                     "endpoint_valid": endpoint.startswith("https://"),
@@ -344,9 +345,11 @@ class TestComplexPlanExecution:
                 }
             }
 
-        def report_generator(**kwargs):
-            user_info = kwargs.get("user_info", {})
-            config_info = kwargs.get("config_info", {})
+        def report_generator(user_info: dict = None, config_info: dict = None) -> dict:
+            if user_info is None:
+                user_info = {}
+            if config_info is None:
+                config_info = {}
 
             return {
                 "report": {
@@ -356,9 +359,9 @@ class TestComplexPlanExecution:
                 }
             }
 
-        executor.register_tool("user_processor", user_processor)
-        executor.register_tool("config_validator", config_validator)
-        executor.register_function("report_generator", report_generator)
+        await executor.register_tool("user_processor", user_processor)
+        await executor.register_tool("config_validator", config_validator)
+        await executor.register_function("report_generator", report_generator)
 
         # Add steps with nested variable references
         step1 = await complex_plan.add_tool_step(
@@ -413,12 +416,11 @@ class TestComplexPlanExecution:
         """Test that dependencies are respected in execution order."""
         execution_order = []
 
-        async def tracking_tool(args):
-            step_name = args.get("step_name")
+        async def tracking_tool(step_name: str = "") -> dict:
             execution_order.append(step_name)
             return {"step": step_name, "executed": True}
 
-        executor.register_tool("tracking_tool", tracking_tool)
+        await executor.register_tool("tracking_tool", tracking_tool)
 
         # Create plan with dependencies
         plan = UniversalPlan("Dependency Test", graph=graph_store)
@@ -475,8 +477,7 @@ class TestErrorHandlingAndRecovery:
     async def test_tool_error_propagation(self, executor, graph_store):
         """Test that tool errors are properly propagated."""
 
-        async def failing_tool(args):
-            error_type = args.get("error_type", "generic")
+        async def failing_tool(error_type: str = "generic") -> dict:
             if error_type == "value":
                 raise ValueError("Test value error")
             elif error_type == "runtime":
@@ -484,7 +485,7 @@ class TestErrorHandlingAndRecovery:
             else:
                 raise Exception("Generic test error")
 
-        executor.register_tool("failing_tool", failing_tool)
+        await executor.register_tool("failing_tool", failing_tool)
 
         plan = UniversalPlan("Error Test", graph=graph_store)
         await plan.add_tool_step(
@@ -501,10 +502,10 @@ class TestErrorHandlingAndRecovery:
     async def test_function_error_propagation(self, executor, graph_store):
         """Test that function errors are properly propagated."""
 
-        def failing_function(**kwargs):
+        def failing_function() -> dict:
             raise ValueError("Function failure")
 
-        executor.register_function("failing_function", failing_function)
+        await executor.register_function("failing_function", failing_function)
 
         plan = UniversalPlan("Function Error Test", graph=graph_store)
         await plan.add_function_step("Failing function", "failing_function", {})
@@ -621,11 +622,10 @@ class TestPerformanceAndMemory:
     async def test_large_plan_execution(self, executor, graph_store):
         """Test execution of a plan with many steps."""
 
-        async def simple_tool(args):
-            step_num = args.get("step_num", 0)
+        async def simple_tool(step_num: int = 0) -> dict:
             return {"result": f"step_{step_num}_completed"}
 
-        executor.register_tool("simple_tool", simple_tool)
+        await executor.register_tool("simple_tool", simple_tool)
 
         # Create a plan with many steps
         plan = UniversalPlan("Large Plan", graph=graph_store)
@@ -661,10 +661,10 @@ class TestPerformanceAndMemory:
             current = current["next"]
         current["final"] = "deep_value"
 
-        async def deep_tool(args):
-            return {"received": args.get("deep_value")}
+        async def deep_tool(deep_value: str = "") -> dict:
+            return {"received": deep_value}
 
-        executor.register_tool("deep_tool", deep_tool)
+        await executor.register_tool("deep_tool", deep_tool)
 
         plan = UniversalPlan("Deep Nesting Test", graph=graph_store)
         plan.set_variable("deep_structure", deep_data)
@@ -694,12 +694,11 @@ class TestConcurrency:
         """Test executing multiple plans concurrently."""
         executor = UniversalExecutor(graph_store)
 
-        async def concurrent_tool(args):
-            plan_id = args.get("plan_id")
+        async def concurrent_tool(plan_id: int = 0) -> dict:
             await asyncio.sleep(0.01)  # Simulate work
             return {"plan_id": plan_id, "completed": True}
 
-        executor.register_tool("concurrent_tool", concurrent_tool)
+        await executor.register_tool("concurrent_tool", concurrent_tool)
 
         # Create multiple plans
         plans = []
@@ -730,11 +729,11 @@ class TestConcurrency:
 
         call_counts = {"count": 0}
 
-        async def stateful_tool(args):
+        async def stateful_tool() -> dict:
             call_counts["count"] += 1
             return {"call_number": call_counts["count"]}
 
-        executor.register_tool("stateful_tool", stateful_tool)
+        await executor.register_tool("stateful_tool", stateful_tool)
 
         # Create two plans
         plan1 = UniversalPlan("Plan 1")

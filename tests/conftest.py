@@ -91,13 +91,24 @@ class MockSessionStoreProvider:
 
 # Mock ToolResult class for chuk_tool_processor
 class MockToolResult:
-    def __init__(self, id="", tool="", args=None, result=None, error=None):
+    def __init__(
+        self,
+        id="",
+        tool="",
+        args=None,
+        result=None,
+        error=None,
+        duration=None,
+        cached=False,
+    ):
         self.id = id
         self.tool = tool
         self.args = args or {}
         self.arguments = args or {}  # Alias for compatibility
         self.result = result
         self.error = error
+        self.duration = duration or 0.001  # Default to small duration
+        self.cached = cached
 
 
 # Mock ToolCall class for chuk_tool_processor
@@ -115,6 +126,14 @@ class MockRegistry:
     def __init__(self):
         self.tools = {}
 
+    async def list_tools(self):
+        """List all registered tools."""
+        return []
+
+    async def register_tool(self, tool, *, name, namespace="default", metadata=None):
+        """Register a tool."""
+        self.tools[f"{namespace}:{name}"] = tool
+
 
 class MockInProcessStrategy:
     def __init__(self, registry=None):
@@ -127,9 +146,87 @@ class MockToolExecutor:
         self.strategy = strategy
 
 
+class MockToolProcessor:
+    """Mock ToolProcessor for testing - actually executes registered tools!"""
+
+    def __init__(self, registry=None, **kwargs):
+        self.registry = registry or MockRegistry()
+        self._tools = {}  # Store registered tools
+
+    async def register_fn_tool(self, func, *, name=None, namespace="default"):
+        """Register a Python function as a tool (v0.2 CTP pattern)."""
+        tool_name = name or func.__name__
+        qualified_name = f"{namespace}:{tool_name}" if namespace else tool_name
+        self._tools[qualified_name] = func
+        self._tools[tool_name] = func  # Also register without namespace
+
+    async def process(self, llm_output):
+        """Process tool calls from LLM output - ACTUALLY EXECUTES TOOLS."""
+        import json
+        import inspect
+
+        # Extract tool calls
+        tool_calls = llm_output.get("tool_calls", [])
+        if not tool_calls:
+            return []
+
+        results = []
+        for call in tool_calls:
+            func_data = call.get("function", {})
+            tool_name = func_data.get("name", "")
+            args = json.loads(func_data.get("arguments", "{}"))
+
+            # Try to execute the actual tool if registered
+            result_data = None
+            error = None
+
+            if tool_name in self._tools:
+                try:
+                    tool_func = self._tools[tool_name]
+                    # Call the function with **kwargs (v0.2 pattern!)
+                    if inspect.iscoroutinefunction(tool_func):
+                        result_data = await tool_func(**args)
+                    else:
+                        result_data = tool_func(**args)
+                except Exception as e:
+                    error = str(e)
+                    result_data = None
+            else:
+                # Tool not found - return error
+                # Include both "Unknown tool" and "Unknown function" for test compatibility
+                error = f"Unknown tool / Unknown function: '{tool_name}' not found"
+                result_data = None
+
+            results.append(
+                MockToolResult(
+                    id=call.get("id"),
+                    tool=tool_name,
+                    args=args,
+                    result=result_data,
+                    error=error,
+                )
+            )
+
+        return results
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass
+
+
 # Mock function for getting default registry
 async def mock_get_default_registry():
     return MockRegistry()
+
+
+# Mock function for register_fn_tool
+async def mock_register_fn_tool(
+    func, *, name=None, description=None, namespace="default"
+):
+    """Mock register_fn_tool that does nothing."""
+    pass
 
 
 # Create simple module objects (not MagicMock to avoid recursion)
@@ -169,15 +266,21 @@ tool_proc.models = SimpleModule()
 tool_proc.models.tool_result = SimpleModule()
 tool_proc.models.tool_call = SimpleModule()
 tool_proc.registry = SimpleModule()
+tool_proc.registry.auto_register = SimpleModule()
 tool_proc.execution = SimpleModule()
 tool_proc.execution.strategies = SimpleModule()
 tool_proc.execution.strategies.inprocess_strategy = SimpleModule()
 tool_proc.execution.tool_executor = SimpleModule()
+tool_proc.core = SimpleModule()
+tool_proc.core.processor = SimpleModule()
 
 # Assign the tool processor classes
+tool_proc.ToolProcessor = MockToolProcessor  # Add at module level
+tool_proc.core.processor.ToolProcessor = MockToolProcessor
 tool_proc.models.tool_result.ToolResult = MockToolResult
 tool_proc.models.tool_call.ToolCall = MockToolCall
 tool_proc.registry.get_default_registry = mock_get_default_registry
+tool_proc.registry.auto_register.register_fn_tool = mock_register_fn_tool
 tool_proc.execution.strategies.inprocess_strategy.InProcessStrategy = (
     MockInProcessStrategy
 )
@@ -202,10 +305,15 @@ sys.modules["chuk_session_manager.storage.providers.memory"] = (
 )
 
 sys.modules["chuk_tool_processor"] = tool_proc
+sys.modules["chuk_tool_processor.core"] = tool_proc.core
+sys.modules["chuk_tool_processor.core.processor"] = tool_proc.core.processor
 sys.modules["chuk_tool_processor.models"] = tool_proc.models
 sys.modules["chuk_tool_processor.models.tool_result"] = tool_proc.models.tool_result
 sys.modules["chuk_tool_processor.models.tool_call"] = tool_proc.models.tool_call
 sys.modules["chuk_tool_processor.registry"] = tool_proc.registry
+sys.modules["chuk_tool_processor.registry.auto_register"] = (
+    tool_proc.registry.auto_register
+)
 sys.modules["chuk_tool_processor.execution"] = tool_proc.execution
 sys.modules["chuk_tool_processor.execution.strategies"] = tool_proc.execution.strategies
 sys.modules["chuk_tool_processor.execution.strategies.inprocess_strategy"] = (

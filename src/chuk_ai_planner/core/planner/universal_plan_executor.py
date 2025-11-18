@@ -6,37 +6,32 @@ Universal Plan Executor - ENHANCED VERSION WITH FIXED VARIABLE RESOLUTION
 
 from __future__ import annotations
 
-import asyncio
+import logging
 import re
 import uuid
 from dataclasses import asdict, is_dataclass
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 from types import MappingProxyType
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 
 from chuk_session_manager.models.session import Session  # type: ignore
-from chuk_session_manager.storage import InMemorySessionStore, SessionStoreProvider  # type: ignore
-
-from chuk_ai_planner.core.graph import (
-    EdgeType,
-    ToolCall,
-    PlanStep,
-    RouteEdge,
+from chuk_session_manager.storage import (  # type: ignore
+    InMemorySessionStore,
+    SessionStoreProvider,
 )
+
+from chuk_ai_planner.core.graph import EdgeType, PlanStep, RouteEdge, ToolCall
 from chuk_ai_planner.core.graph.types import NodeType
-from chuk_ai_planner.processor import GraphAwareToolProcessor
+from chuk_ai_planner.core.routing import RoutingExecutor
 from chuk_ai_planner.core.store.base import GraphStore
 from chuk_ai_planner.core.store.memory import InMemoryGraphStore
-from chuk_ai_planner.core.routing import RoutingExecutor
+from chuk_ai_planner.execution.interfaces import ToolExecutionBackend
+from chuk_ai_planner.execution.models import ToolExecutionRequest
+from chuk_ai_planner.processor import GraphAwareToolProcessor
 
 from .plan_executor import PlanExecutor
-from .universal_plan import (
-    UniversalPlan,
-    TOOL_TYPE_FUNCTION,
-    EDGE_TYPE_RESULT_VARIABLE,
-    KEY_VARIABLE,
-    KEY_ARGS,
-    KEY_FUNCTION,
-)
+from .universal_plan import EDGE_TYPE_RESULT_VARIABLE, KEY_VARIABLE, UniversalPlan
+
+_log = logging.getLogger(__name__)
 
 # Context keys
 CTX_VARIABLES = "variables"
@@ -55,7 +50,31 @@ class UniversalExecutor:
     """Execute :class:`~chuk_ai_planner.planner.universal_plan.UniversalPlan` with robust variable handling."""
 
     # ------------------------------------------------------------------ init
-    def __init__(self, graph_store: GraphStore | None = None):
+    def __init__(
+        self,
+        graph_store: GraphStore | None = None,
+        tool_backend: ToolExecutionBackend | None = None,
+        *,
+        processor: Any = None,
+        namespace: Optional[str] = None,
+    ):
+        """
+        Initialize UniversalExecutor with chuk-tool-processor.
+
+        Args:
+            graph_store: Optional graph store to use
+            tool_backend: Optional custom backend (advanced usage)
+            processor: Optional ToolProcessor instance. If None, creates a new one.
+            namespace: Optional namespace prefix for tool names (e.g., "github")
+
+        Note:
+            The default execution backend is ToolProcessorBackend, providing:
+            - Python functions (via register_fn_tool)
+            - MCP tools (Notion, GitHub, etc.)
+            - ACP agents
+            - Container execution
+            - Built-in retries, caching, rate limiting
+        """
         # Ensure there is a session store
         try:
             SessionStoreProvider.get_store()
@@ -74,8 +93,90 @@ class UniversalExecutor:
         self.routing_executor = RoutingExecutor(self.graph_store)
         self.assistant_node_id: str = str(uuid.uuid4())
 
-        self.tool_registry: Dict[str, Callable[..., Awaitable[Any]]] = {}
-        self.function_registry: Dict[str, Callable[..., Any]] = {}
+        # Store processor config for lazy initialization
+        self._processor_instance = processor
+        self._namespace = namespace
+
+        # Tool execution backend (defaults to CTP)
+        if tool_backend is None:
+            # Will be created in _ensure_session
+            self.tool_backend = None
+            self._needs_backend_init = True
+        else:
+            self.tool_backend = tool_backend
+            self._needs_backend_init = False
+
+    # ----------------------------------------------------------- factory methods
+    @classmethod
+    async def with_tool_processor(
+        cls,
+        graph_store: GraphStore | None = None,
+        *,
+        processor: Any = None,
+        namespace: Optional[str] = None,
+    ) -> "UniversalExecutor":
+        """
+        Create a UniversalExecutor using chuk-tool-processor for tool execution.
+
+        This makes the planner the universal agent runtime for the CHUK ecosystem,
+        supporting:
+        - Local tools (@tool decorator)
+        - MCP tools (setup_mcp_stdio, setup_mcp_sse, etc.)
+        - ACP agents
+        - Container-based execution
+        - Built-in reliability (retries, circuit breakers, rate limits)
+
+        Args:
+            graph_store: Optional graph store to use
+            processor: Optional ToolProcessor instance. If None, creates a new one.
+            namespace: Optional namespace prefix for tool names (e.g., "mcp")
+
+        Returns:
+            UniversalExecutor configured to use chuk-tool-processor
+
+        Example:
+            ```python
+            from chuk_tool_processor import ToolProcessor, tool
+            from chuk_ai_planner.core.planner import UniversalPlan
+            from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecutor
+
+            @tool(name="fetch_data")
+            class FetchData:
+                async def execute(self, url: str) -> dict:
+                    return {"url": url, "data": [1, 2, 3]}
+
+            # Create executor with tool processor
+            async with ToolProcessor() as tp:
+                executor = await UniversalExecutor.with_tool_processor(
+                    processor=tp,
+                    namespace=None,
+                )
+
+                # Create and execute plan
+                plan = UniversalPlan(title="Data Pipeline", graph=executor.graph_store)
+                await plan.add_tool_step(
+                    title="Fetch",
+                    tool_name="fetch_data",
+                    args={"url": "/api/data"},
+                    result_variable="data",
+                )
+                plan_id = await plan.save()
+                results = await executor.execute(plan_id)
+            ```
+        """
+        from chuk_ai_planner.execution.ctp_backend import ToolProcessorBackend
+
+        # Import ToolProcessor here to avoid hard dependency
+        if processor is None:
+            from chuk_tool_processor import ToolProcessor
+
+            processor = ToolProcessor()
+
+        # Create backend
+        backend = ToolProcessorBackend(processor=processor, namespace=namespace)
+
+        # Create executor with backend
+        return cls(graph_store=graph_store, tool_backend=backend)
 
     # ----------------------------------------------------------- async setup
     async def _ensure_session(self):
@@ -84,6 +185,25 @@ class UniversalExecutor:
             self.session = Session()
             store = SessionStoreProvider.get_store()
             await store.save(self.session)
+
+            # Initialize ToolProcessor backend if needed
+            if self._needs_backend_init:
+                from chuk_ai_planner.execution.ctp_backend import ToolProcessorBackend
+
+                if self._processor_instance is None:
+                    try:
+                        from chuk_tool_processor import ToolProcessor
+
+                        self._processor_instance = ToolProcessor()
+                    except ImportError as e:
+                        raise ImportError(
+                            "chuk-tool-processor is required but could not be imported. "
+                            "Install it with: uv pip install chuk-tool-processor"
+                        ) from e
+
+                self.tool_backend = ToolProcessorBackend(
+                    processor=self._processor_instance, namespace=self._namespace
+                )
 
             # Now initialize the processor
             self.processor = GraphAwareToolProcessor(
@@ -96,39 +216,76 @@ class UniversalExecutor:
             self._session_initialized = True
 
     # ----------------------------------------------------------- registry
-    def register_tool(self, name: str, fn: Callable[..., Awaitable[Any]]) -> None:
-        """Register a tool function."""
-        self.tool_registry[name] = fn
+    async def register_tool(self, name: str, fn: Callable[..., Awaitable[Any]]) -> None:
+        """
+        Register a tool function with chuk-tool-processor.
 
-    def register_function(self, name: str, fn: Callable[..., Any]) -> None:
-        """Register a function that can be called from plan steps."""
-        self.function_registry[name] = fn
+        Args:
+            name: Name of the tool
+            fn: Async or sync callable to execute
 
-    async def _register_tools_with_processor(self):
-        """Register tools with processor after it's initialized"""
-        if self.processor is None:
-            await self._ensure_session()
+        Note:
+            Tools registered here get automatic retries, caching, and rate limiting
+            from chuk-tool-processor. Use the same registry for all tool types
+            (Python functions, MCP tools, ACP agents, containers).
 
-        # Register all tools
-        for name, fn in self.tool_registry.items():
+        Example:
+            ```python
+            async def add_numbers(a: int, b: int) -> dict:
+                return {"sum": a + b}
+
+            executor = UniversalExecutor()
+            await executor.register_tool("add", add_numbers)
+            ```
+        """
+        # Register with CTP's global registry (production)
+        try:
+            from chuk_tool_processor.registry.auto_register import register_fn_tool
+
+            await register_fn_tool(
+                fn, name=name, namespace=self._namespace or "default"
+            )
+        except ImportError:
+            # In tests, CTP might not be available - that's OK
+            pass
+
+        # Ensure backend is initialized
+        await self._ensure_session()
+
+        # Register with the backend's processor (for both production and tests)
+        if self.tool_backend and hasattr(self.tool_backend, "_processor"):
+            processor = self.tool_backend._processor
+            if hasattr(processor, "register_fn_tool"):
+                await processor.register_fn_tool(
+                    fn, name=name, namespace=self._namespace or "default"
+                )
+
+        # Also register with GraphAwareToolProcessor if it exists
+        if self.processor is not None:
             self.processor.register_tool(name, fn)
 
-        # Register function wrapper
-        async def wrapper(
-            args: Dict[str, Any],
-        ):  # pragma: no cover - internal wrapper tested via plan execution
-            fn_name = args.get(TOOL_TYPE_FUNCTION)
-            if not fn_name or not isinstance(fn_name, str):
-                raise ValueError("function name is required")
-            fn_args = args.get(KEY_ARGS, {})
-            target = self.function_registry.get(fn_name)
-            if target is None:
-                raise ValueError(f"Unknown function {fn_name!r}")
-            if asyncio.iscoroutinefunction(target):
-                return await target(**fn_args)
-            return target(**fn_args)
+    async def register_function(self, name: str, fn: Callable[..., Any]) -> None:
+        """
+        Register a function that can be called from plan steps.
 
-        self.processor.register_tool(TOOL_TYPE_FUNCTION, wrapper)
+        Args:
+            name: Name of the function
+            fn: Async or sync callable to execute
+
+        Note:
+            This is an alias for register_tool. All tools are registered the same way.
+        """
+        await self.register_tool(name, fn)
+
+    async def _register_tools_with_processor(self):
+        """
+        Ensure session and processor are initialized.
+
+        Note: Tools are now registered directly with CTP via register_tool(),
+        not through this method. This method just ensures the processor exists.
+        """
+        if self.processor is None:
+            await self._ensure_session()
 
     # ----------------------------------------------------------- JSON serialization helpers
     def _get_json_serializable_data(self, data: Any) -> Any:
@@ -432,6 +589,10 @@ class UniversalExecutor:
             tool_name = tool_node.name
             args = tool_node.args
 
+            # Validate tool/function name is not empty
+            if not tool_name:
+                raise ValueError("function name is required")
+
             # FIXED: Find result variable using the new method
             result_variable = await self._find_result_variable(step_id, tool_node.id)
 
@@ -449,46 +610,37 @@ class UniversalExecutor:
                     f"Tool args must be a dictionary, got {type(json_safe_args)}: {json_safe_args}"
                 )
 
+            # Validate function wrapper calls (after resolving variables)
+            if tool_name == "function":
+                # This is a function wrapper call - validate it has required fields
+                if not json_safe_args.get("function"):
+                    raise ValueError("function name is required")
+                # Validate the inner args are a dict
+                inner_args = json_safe_args.get("args", {})
+                if not isinstance(inner_args, dict):
+                    raise ValueError(
+                        f"Function args must be a dictionary, got {type(inner_args)}"
+                    )
+
             try:
-                # Execute the appropriate function
-                if tool_name == TOOL_TYPE_FUNCTION:
-                    # Handle function calls
-                    fn_name = json_safe_args.get(KEY_FUNCTION)
-                    if not fn_name or not isinstance(fn_name, str):
-                        raise ValueError("function name is required")
-                    fn_args = json_safe_args.get(KEY_ARGS, {})
+                # Execute via backend (pluggable!) - Pydantic-native
+                request = ToolExecutionRequest(
+                    tool_name=tool_name,
+                    args=json_safe_args,
+                    step_id=step_id,
+                    session_id=self.session.id if self.session else None,
+                )
+                if self.tool_backend is None:
+                    raise RuntimeError("Tool backend not initialized")
+                execution_result = await self.tool_backend.execute_tool(request)
 
-                    # ENHANCED: Resolve variables in function args again with nested support
-                    fn_args = self._resolve_vars(fn_args, context[CTX_VARIABLES])
-                    fn_args = self._get_json_serializable_data(fn_args)
+                # Check for errors
+                if execution_result.error:
+                    raise RuntimeError(
+                        f"Tool '{tool_name}' failed: {execution_result.error}"
+                    )
 
-                    # Ensure fn_args is a dict
-                    if not isinstance(fn_args, dict):
-                        raise ValueError(
-                            f"Function args must be a dictionary, got {type(fn_args)}: {fn_args}"
-                        )
-
-                    fn = self.function_registry.get(fn_name)
-                    if fn is None:
-                        raise ValueError(f"Unknown function: {fn_name}")
-
-                    # Call function with args (ensure async-native handling)
-                    if asyncio.iscoroutinefunction(fn):
-                        result = await fn(**fn_args)
-                    else:
-                        result = fn(**fn_args)
-                else:
-                    # Direct execution of the tool function
-                    fn = self.tool_registry.get(tool_name)
-                    if fn is None:
-                        raise ValueError(f"Unknown tool: {tool_name}")
-
-                    # Execute the tool function directly with JSON-safe args (async-native)
-                    if asyncio.iscoroutinefunction(fn):
-                        result = await fn(json_safe_args)
-                    else:
-                        # For sync functions, we can still call them directly
-                        result = fn(json_safe_args)
+                result = execution_result.result
 
                 # Store result for return
                 results.append(result)
@@ -731,7 +883,12 @@ class UniversalExecutor:
 
     # ----------------------------------------------------------- direct tool execution
     async def _execute_tool_directly(self, tool_node: Any, context: Dict[str, Any]):
-        """Execute a tool node directly (fallback method)."""
+        """
+        Execute a tool node using the execution backend.
+
+        Note: This is a fallback path that should rarely be used.
+        Normal execution goes through _execute_step which uses the ToolExecutionBackend.
+        """
         tool_name = tool_node.name
         args = tool_node.args
         result_variable = tool_node.result_variable
@@ -744,33 +901,23 @@ class UniversalExecutor:
             return None
 
         try:
-            # Execute the tool
-            if tool_name == TOOL_TYPE_FUNCTION:
-                fn_name = json_safe_args.get(TOOL_TYPE_FUNCTION)
-                if not fn_name or not isinstance(fn_name, str):
-                    return None
-                fn_args = json_safe_args.get(KEY_ARGS, {})
+            # Use the execution backend (CTP)
+            request = ToolExecutionRequest(
+                tool_name=tool_name,
+                args=json_safe_args,
+                step_id=tool_node.id if hasattr(tool_node, "id") else str(uuid.uuid4()),
+                session_id=self.session.id if self.session else None,
+            )
 
-                if not isinstance(fn_args, dict):
-                    return None
+            if self.tool_backend is None:
+                raise RuntimeError("Tool backend not initialized")
+            execution_result = await self.tool_backend.execute_tool(request)
 
-                fn = self.function_registry.get(fn_name)
-                if fn is None:
-                    return None
+            if not execution_result.success:
+                _log.warning(f"Tool '{tool_name}' failed: {execution_result.error}")
+                return None
 
-                if asyncio.iscoroutinefunction(fn):
-                    result = await fn(**fn_args)
-                else:
-                    result = fn(**fn_args)
-            else:
-                fn = self.tool_registry.get(tool_name)
-                if fn is None:
-                    return None
-
-                if asyncio.iscoroutinefunction(fn):
-                    result = await fn(json_safe_args)
-                else:
-                    result = fn(json_safe_args)
+            result = execution_result.result
 
             # Store result if result_variable is specified
             if result_variable:
@@ -778,7 +925,8 @@ class UniversalExecutor:
 
             return result
 
-        except Exception:
+        except Exception as e:
+            _log.error(f"Error executing tool '{tool_name}': {e}")
             return None
 
     # ----------------------------------------------------------- convenience

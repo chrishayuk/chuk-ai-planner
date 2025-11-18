@@ -50,11 +50,10 @@ research_documents: List[Dict[str, Any]] = []
 # --------------------------------------------------------------------------- #
 
 
-async def search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def search_tool(query: str = "unknown") -> dict:
     """
     Mock search tool—replace with real search API if desired.
     """
-    query: str = args.get("query", "unknown")
     logger.info(f"🔍 Searching for: {query}")
 
     results = [
@@ -123,8 +122,8 @@ async def research_topic(topic: str, config: ResearchConfig) -> Dict[str, Any]:
 
     # Register tools with the executor
     executor = UniversalExecutor()
-    executor.register_tool("search", search_tool)
-    executor.register_function("summarize", summarize_tool)
+    await executor.register_tool("search", search_tool)
+    await executor.register_function("summarize", summarize_tool)
 
     # Build the plan
     plan = UniversalPlan(

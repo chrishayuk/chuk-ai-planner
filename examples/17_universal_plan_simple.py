@@ -20,9 +20,8 @@ from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecut
 
 
 # --------------------------------------------------------------------------- custom tools / fns
-async def batch_weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def batch_weather_tool(locations: list) -> dict:
     """Get weather data for multiple locations."""
-    locations = args.get("locations", [])
     print(f"📍 Getting weather for {len(locations)} locations")
 
     # Sample weather data
@@ -200,10 +199,12 @@ async def main():
     executor = UniversalExecutor()
 
     # Register our custom tools and functions
-    executor.register_tool("batch_weather", batch_weather_tool)
-    executor.register_function("analyze_weather", analyze_weather_function)
-    executor.register_function("create_report", create_report_function)
-    executor.register_function("format_visualization", format_visualization_function)
+    await executor.register_tool("batch_weather", batch_weather_tool)
+    await executor.register_function("analyze_weather", analyze_weather_function)
+    await executor.register_function("create_report", create_report_function)
+    await executor.register_function(
+        "format_visualization", format_visualization_function
+    )
 
     # Create the weather analysis plan
     plan = await create_weather_analysis_plan()

@@ -287,7 +287,7 @@ async def main(live: bool) -> None:
     # Register all tools
     tools = create_tool_implementations()
     for tool_name, tool_func in tools.items():
-        executor.register_tool(tool_name, tool_func)
+        await executor.register_tool(tool_name, tool_func)
 
     print(f"Registered tools: {list(tools.keys())}\n")
 

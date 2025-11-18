@@ -29,9 +29,8 @@ from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
 
 # ───────────────────── Simple Tool Implementations ─────────────────
-async def weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def weather_tool(location: str = "Unknown") -> dict:
     """Get weather for a location with visible output"""
-    location = args.get("location", "Unknown")
     print(f"🌤️ Getting weather for: {location}")
 
     # Mock weather data
@@ -64,11 +63,8 @@ async def weather_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-async def calculator_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def calculator_tool(operation: str = "add", a: float = 0, b: float = 0) -> dict:
     """Perform calculation with visible output"""
-    operation = args.get("operation", "add")
-    a = float(args.get("a", 0))
-    b = float(args.get("b", 0))
 
     print(f"🧮 Calculating: {a} {operation} {b}")
 
@@ -89,9 +85,8 @@ async def calculator_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"result": result, "operation": operation, "operands": [a, b]}
 
 
-async def search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def search_tool(query: str = "") -> dict:
     """Search for information with visible output"""
-    query = args.get("query", "")
     print(f"🔍 Searching for: '{query}'")
 
     # Mock search results
@@ -117,10 +112,12 @@ async def search_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     return {"query": query, "total_results": len(results), "results": results}
 
 
-async def analyzer_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def analyzer_tool(
+    weather_data: dict = None, calculation_result: dict = None
+) -> dict:
     """Analyze data with visible output"""
-    weather_data = args.get("weather_data", {})
-    calculation_result = args.get("calculation_result", {})
+    weather_data = weather_data or {}
+    calculation_result = calculation_result or {}
 
     print("📊 Analyzing weather and calculation data...")
 
@@ -225,10 +222,10 @@ async def execute_with_logging(plan: UniversalPlan):
     executor = UniversalExecutor(graph_store=plan.graph)
 
     # Register tools
-    executor.register_tool("weather", weather_tool)
-    executor.register_tool("calculator", calculator_tool)
-    executor.register_tool("search", search_tool)
-    executor.register_tool("analyzer", analyzer_tool)
+    await executor.register_tool("weather", weather_tool)
+    await executor.register_tool("calculator", calculator_tool)
+    await executor.register_tool("search", search_tool)
+    await executor.register_tool("analyzer", analyzer_tool)
 
     print("✅ Tools registered: weather, calculator, search, analyzer")
 

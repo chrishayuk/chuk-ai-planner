@@ -26,9 +26,8 @@ from chuk_ai_planner.core.planner.universal_plan_executor import UniversalExecut
 # ============================================================================
 
 
-async def sudoku_parse_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def sudoku_parse_tool(puzzle: str = "") -> dict:
     """Parse a Sudoku puzzle string into a grid"""
-    puzzle = args.get("puzzle", "")
     print("🧩 Parsing Sudoku puzzle...")
 
     if len(puzzle) != 81:
@@ -75,10 +74,11 @@ def validate_sudoku_function(**kwargs) -> Dict[str, Any]:
     }
 
 
-async def sudoku_technique_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def sudoku_technique_tool(
+    grid: list = None, technique: str = "naked_single"
+) -> dict:
     """Apply Sudoku solving techniques"""
-    grid = args.get("grid", [])
-    technique = args.get("technique", "naked_single")
+    grid = grid or []
 
     print(f"🎯 Applying technique: {technique}")
 
@@ -117,9 +117,9 @@ async def sudoku_technique_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-async def sudoku_backtrack_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def sudoku_backtrack_tool(grid: list = None) -> dict:
     """Solve Sudoku using backtracking algorithm"""
-    grid = args.get("grid", [])
+    grid = grid or []
 
     print("🔄 Applying backtracking algorithm...")
 
@@ -190,10 +190,9 @@ def format_sudoku_function(**kwargs) -> Dict[str, Any]:
 # ============================================================================
 
 
-async def validate_dates_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def validate_dates_tool(departure_date: str = "", return_date: str = "") -> dict:
     """Validate travel dates"""
-    departure = args.get("departure_date", "")
-    return_date = args.get("return_date", "")
+    departure = departure_date
 
     print(f"📅 Validating travel dates: {departure} to {return_date}")
 
@@ -210,12 +209,13 @@ async def validate_dates_tool(args: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-async def search_flights_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def search_flights_tool(
+    origin: str = "",
+    destination: str = "",
+    departure_date: str = "",
+    passengers: int = 1,
+) -> dict:
     """Search for available flights"""
-    origin = args.get("origin", "")
-    destination = args.get("destination", "")
-    departure_date = args.get("departure_date", "")
-    passengers = args.get("passengers", 1)
 
     print(f"✈️ Searching flights {origin} → {destination} for {passengers} passengers")
 
@@ -333,10 +333,10 @@ def calculate_pricing_function(**kwargs) -> Dict[str, Any]:
     }
 
 
-async def book_flight_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def book_flight_tool(pricing: dict = None, passenger_info: list = None) -> dict:
     """Book the selected flight"""
-    pricing = args.get("pricing", {})
-    passenger_info = args.get("passenger_info", [])
+    pricing = pricing or {}
+    passenger_info = passenger_info or []
 
     recommended = pricing.get("recommended", {})
 
@@ -371,10 +371,9 @@ async def book_flight_tool(args: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================================
 
 
-async def load_data_tool(args: Dict[str, Any]) -> Dict[str, Any]:
+async def load_data_tool(source: str = "", parameters: dict = None) -> dict:
     """Load data from a source"""
-    source = args.get("source", "")
-    parameters = args.get("parameters", {})
+    parameters = parameters or {}
 
     print(f"📊 Loading data from: {source}")
 
@@ -868,24 +867,24 @@ async def main():
     print("\n🔧 Registering tools and functions...")
 
     # Register Sudoku tools
-    executor.register_tool("sudoku_parse", sudoku_parse_tool)
-    executor.register_tool("sudoku_technique", sudoku_technique_tool)
-    executor.register_tool("sudoku_backtrack", sudoku_backtrack_tool)
-    executor.register_function("validate_sudoku", validate_sudoku_function)
-    executor.register_function("format_sudoku", format_sudoku_function)
+    await executor.register_tool("sudoku_parse", sudoku_parse_tool)
+    await executor.register_tool("sudoku_technique", sudoku_technique_tool)
+    await executor.register_tool("sudoku_backtrack", sudoku_backtrack_tool)
+    await executor.register_function("validate_sudoku", validate_sudoku_function)
+    await executor.register_function("format_sudoku", format_sudoku_function)
 
     # Register Flight booking tools
-    executor.register_tool("validate_dates", validate_dates_tool)
-    executor.register_tool("search_flights", search_flights_tool)
-    executor.register_tool("book_flight", book_flight_tool)
-    executor.register_function("filter_flights", filter_flights_function)
-    executor.register_function("calculate_pricing", calculate_pricing_function)
+    await executor.register_tool("validate_dates", validate_dates_tool)
+    await executor.register_tool("search_flights", search_flights_tool)
+    await executor.register_tool("book_flight", book_flight_tool)
+    await executor.register_function("filter_flights", filter_flights_function)
+    await executor.register_function("calculate_pricing", calculate_pricing_function)
 
     # Register Data analysis tools
-    executor.register_tool("load_data", load_data_tool)
-    executor.register_function("clean_data", clean_data_function)
-    executor.register_function("analyze_data", analyze_data_function)
-    executor.register_function("generate_report", generate_report_function)
+    await executor.register_tool("load_data", load_data_tool)
+    await executor.register_function("clean_data", clean_data_function)
+    await executor.register_function("analyze_data", analyze_data_function)
+    await executor.register_function("generate_report", generate_report_function)
 
     print("✅ All tools and functions registered!")
 

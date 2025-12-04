@@ -520,8 +520,8 @@ async def main(live: bool = False) -> None:
     # Register coffee tools
     for tool_name in ["grind_beans", "boil_water", "brew_coffee", "clean_station"]:
         # Create a closure to capture the tool name
-        async def tool_fn(args, name=tool_name):
-            return await coffee_tool(args, name)
+        async def tool_fn(name=tool_name, **kwargs):
+            return await coffee_tool(name, **kwargs)
 
         await executor.register_tool(tool_name, tool_fn)
 

@@ -34,10 +34,8 @@ async def example_1_local_backend():
     from chuk_ai_planner.core.store.memory import InMemoryGraphStore
 
     # Define a simple tool
-    async def add_numbers(args):
+    async def add_numbers(a: int = 0, b: int = 0):
         """Add two numbers."""
-        a = args.get("a", 0)
-        b = args.get("b", 0)
         return {"sum": a + b, "operation": "add"}
 
     # Create executor (uses LocalFunctionBackend by default)
@@ -162,8 +160,7 @@ async def example_3_pydantic_models():
     backend = LocalFunctionBackend()
 
     # Define and register a tool
-    async def greet(args):
-        name = args.get("name", "World")
+    async def greet(name: str = "World"):
         return {"message": f"Hello, {name}!"}
 
     backend.register_tool("greet", greet)
@@ -214,7 +211,7 @@ async def example_4_error_handling():
     backend = LocalFunctionBackend()
 
     # Tool that raises an error
-    async def failing_tool(args):
+    async def failing_tool():
         raise ValueError("Something went wrong!")
 
     backend.register_tool("failing_tool", failing_tool)

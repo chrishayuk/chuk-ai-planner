@@ -113,12 +113,13 @@ class MockToolResult:
 
 # Mock ToolCall class for chuk_tool_processor
 class MockToolCall:
-    def __init__(self, id=None, tool="", arguments=None):
+    def __init__(self, id=None, tool="", arguments=None, _idempotency_key=None):
         import uuid
 
         self.id = id or str(uuid.uuid4())
         self.tool = tool
         self.arguments = arguments or {}
+        self._idempotency_key = _idempotency_key or self.id
 
 
 # Mock classes for tool processor execution

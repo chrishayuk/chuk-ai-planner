@@ -21,7 +21,7 @@ class InMemoryGraphStore(GraphStore):
     This implementation stores nodes and edges in memory with no persistence.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize an empty store."""
         self.nodes: Dict[str, GraphNode] = {}  # id -> GraphNode
         self.edges: List[GraphEdge] = []  # list of GraphEdge

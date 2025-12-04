@@ -6,6 +6,8 @@ dist/
 wheels/
 *.egg-info
 .pytest_cache
+.mypy_cache
+.ruff_cache
 
 # Virtual environments
 .venv
@@ -13,3 +15,5 @@ wheels/
 # environment
 .env
 .DS_Store
+.claude/
+

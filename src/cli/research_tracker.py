@@ -21,7 +21,7 @@ class ResearchTracker:
     coverage and extract insights from the collected data.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize a new research tracker."""
         self.rounds: List[Dict[str, Any]] = []
         self.current_round: int = 0

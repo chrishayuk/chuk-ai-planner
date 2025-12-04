@@ -175,17 +175,17 @@ async def convert_to_universal_plan(llm_json: Dict[str, Any]) -> UniversalPlan:
 def create_tool_implementations():
     """Create implementations for all the tools used in the demo"""
 
-    async def grind_beans_tool(args):
+    async def grind_beans_tool(**kwargs):
         print("☕ Grinding coffee beans...")
         await asyncio.sleep(0.1)  # Simulate work
         return {"status": "Beans ground successfully", "grind_size": "medium"}
 
-    async def boil_water_tool(args):
+    async def boil_water_tool(**kwargs):
         print("🔥 Boiling water...")
         await asyncio.sleep(0.1)
         return {"status": "Water boiled to 200°F", "temperature": 200}
 
-    async def brew_coffee_tool(args):
+    async def brew_coffee_tool(**kwargs):
         print("☕ Brewing coffee...")
         await asyncio.sleep(0.1)
         return {
@@ -194,23 +194,20 @@ def create_tool_implementations():
             "aroma": "excellent",
         }
 
-    async def clean_station_tool(args):
+    async def clean_station_tool(**kwargs):
         print("🧽 Cleaning coffee station...")
         await asyncio.sleep(0.1)
         return {"status": "Coffee station cleaned and sanitized"}
 
-    async def calculator_tool(args):
-        print(f"🧮 Calculating: {args}")
-        if args.get("operation") == "multiply":
-            a = float(args.get("a", 0))
-            b = float(args.get("b", 0))
+    async def calculator_tool(operation: str = "unknown", a: float = 0, b: float = 0):
+        print(f"🧮 Calculating: operation={operation}, a={a}, b={b}")
+        if operation == "multiply":
             result = a * b
             print(f"   {a} × {b} = {result}")
             return {"result": result, "operation": "multiply", "operands": [a, b]}
-        return {"result": 0, "operation": args.get("operation", "unknown")}
+        return {"result": 0, "operation": operation}
 
-    async def weather_tool(args):
-        location = args.get("location", "Unknown")
+    async def weather_tool(location: str = "Unknown"):
         print(f"🌤️ Checking weather in {location}...")
         await asyncio.sleep(0.1)
         return {
@@ -221,8 +218,7 @@ def create_tool_implementations():
             "wind_speed": "8 mph",
         }
 
-    async def search_tool(args):
-        query = args.get("query", "")
+    async def search_tool(query: str = ""):
         print(f"🔍 Searching for: {query}")
         await asyncio.sleep(0.1)
         return {

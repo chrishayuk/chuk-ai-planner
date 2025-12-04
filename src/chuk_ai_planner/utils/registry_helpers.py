@@ -78,7 +78,7 @@ async def execute_tool(
 
     # Create a tool call in the new format
     call_id = tool_call.get("id", str(uuid4()))
-    tc = ToolCall(id=call_id, tool=name, arguments=args, idempotency_key=call_id)
+    tc = ToolCall(id=call_id, tool=name, arguments=args, _idempotency_key=call_id)
 
     # Execute the tool call
     results = await executor.execute([tc])

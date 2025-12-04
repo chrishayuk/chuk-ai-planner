@@ -209,8 +209,9 @@ def _print_plan_structure(
                 break
 
         if step:
-            step_index = step.data.get("index", i + 1)
-            step_desc = step.data.get("description", "Unknown step")
+            # Access Pydantic model attributes directly, not through .data
+            step_index = getattr(step, "index", i + 1)
+            step_desc = getattr(step, "description", "Unknown step")
             print(f"{prefix} Step {step_index}: {step_desc}")
 
             # Show tool executions for this step
@@ -233,7 +234,8 @@ def _print_plan_structure(
                         break
 
                 if tool:
-                    tool_name = tool.data.get("name", "unknown tool")
+                    # Access Pydantic model attributes directly
+                    tool_name = getattr(tool, "name", "unknown tool")
                     print(f"{tool_prefix} {tool_name}: {tool!r}")
 
 
@@ -279,7 +281,8 @@ def _print_assistant_structure(
                 break
 
         if tool:
-            tool_name = tool.data.get("name", "unknown")
+            # Access Pydantic model attributes directly
+            tool_name = getattr(tool, "name", "unknown")
             print(f"{prefix} Tool: {tool_name}")
 
             # Show task run for this tool
@@ -300,5 +303,7 @@ def _print_assistant_structure(
                         break
 
                 if task:
-                    success = "✓" if task.data.get("success", False) else "✗"
+                    # Access Pydantic model attributes directly
+                    # TaskRun has a status field that's a TaskStatus enum
+                    success = "✓" if getattr(task, "result", None) is not None else "✗"
                     print(f"{next_indent}└── Task: {success} ({task!r})")

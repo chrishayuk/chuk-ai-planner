@@ -669,20 +669,6 @@ Contributions are welcome! Please:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Roadmap
-
-See `ROADMAP_TO_EXCELLENCE.md` for the complete roadmap to making this the world's best LLM planner.
-
-**Highlights:**
-- ✅ Pluggable execution backends (COMPLETE)
-- ✅ Pydantic-native models (COMPLETE)
-- ✅ Async-native architecture (COMPLETE)
-- ✅ MCP/ACP integration (COMPLETE)
-- 🚧 Tool schema discovery
-- 🚧 Advanced optimization engine
-- 🚧 Distributed execution
-- 🚧 Plan marketplace
-
 ---
 
 **Built with ❤️ for the AI agent community**

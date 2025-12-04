@@ -29,11 +29,17 @@ def unfreeze_data(obj: Any) -> Any:
     """
     if isinstance(obj, MappingProxyType):
         return {key: unfreeze_data(value) for key, value in obj.items()}
+    elif isinstance(obj, dict):
+        # Recurse into regular dicts to handle nested frozen structures
+        return {key: unfreeze_data(value) for key, value in obj.items()}
     elif isinstance(obj, tuple):
         # Convert tuples back to lists for JSON compatibility
         return [unfreeze_data(item) for item in obj]
     elif isinstance(obj, frozenset):
         # Convert frozensets back to lists (sets aren't JSON serializable)
+        return [unfreeze_data(item) for item in obj]
+    elif isinstance(obj, list):
+        # Recurse into lists to handle nested frozen structures
         return [unfreeze_data(item) for item in obj]
     else:
         return obj

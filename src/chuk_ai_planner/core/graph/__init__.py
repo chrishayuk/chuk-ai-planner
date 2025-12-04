@@ -39,6 +39,7 @@ from chuk_ai_planner.core.graph.types import (
     ReliabilityProfile,
     RouterType,
     StepStatus,
+    TaskStatus,
 )
 
 # Re-export all nodes
@@ -77,6 +78,7 @@ __all__ = [
     "EdgeType",
     "RouterType",
     "StepStatus",
+    "TaskStatus",
     "ApprovalStatus",
     "ReliabilityProfile",
     # Nodes

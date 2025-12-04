@@ -50,7 +50,7 @@ async def pretty_print_plan(graph: GraphStore, plan_node: GraphNode) -> None:
             print(f"{indent}{idx:<5} {ch.description}")
             await dfs(ch.id, depth + 1)
 
-    print(clr(typed_plan.description or "Plan", "1;33"))
+    print(clr(typed_plan.title or "Plan", "1;33"))
     await dfs(plan_node.id)
 
 
@@ -62,7 +62,7 @@ class PlanRunLogger:
         [tool] 1.1 Grind beans → echo({...}) ✓
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.label: Dict[str, str] = {}
         self._w = 1
 

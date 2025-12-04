@@ -664,8 +664,12 @@ async def main():
     await executor.register_function("generate_report", generate_report_function)
 
     # Create and register the subplan execution tool with closure
-    async def subplan_tool(args):
-        return await subplan_execution_tool(args, registry, executor)
+    async def subplan_tool(plan_id: str, args: dict = None):
+        if args is None:
+            args = {}
+        return await subplan_execution_tool(
+            {"plan_id": plan_id, "args": args}, registry, executor
+        )
 
     await executor.register_tool("subplan", subplan_tool)
 

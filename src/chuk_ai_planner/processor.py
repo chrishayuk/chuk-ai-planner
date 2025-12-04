@@ -200,7 +200,7 @@ class GraphAwareToolProcessor:
 
                 # Create a ToolCall for the executor
                 tc = ProcessorToolCall(
-                    id=call_id, tool=tool_name, arguments=args, idempotency_key=call_id
+                    id=call_id, tool=tool_name, arguments=args, _idempotency_key=call_id
                 )
 
                 # Execute the tool

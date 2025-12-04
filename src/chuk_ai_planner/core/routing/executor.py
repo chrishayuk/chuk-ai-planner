@@ -40,7 +40,7 @@ class FunctionRegistry:
     >>> print(result)  # "urgent"
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._functions: Dict[str, Callable] = {}
 
     def register(self, name: str):
